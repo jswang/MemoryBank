@@ -31,6 +31,16 @@ class MemoryBank:
         # Model that goes from sentence to sentence representation
         self.sent_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
+    def ask_question(self, question):
+        """Given a questions, answer yes or no"""
+        input_string = f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {question}"
+        input_ids = self.qa_tokenizer.encode(input_string, return_tensors="pt")
+        encoded_output = self.qa_model.generate(
+            input_ids, max_length=self.max_length)
+        self.qa_tokenizer.batch_decode(
+            encoded_output, skip_special_tokens=True)
+        return self.qa_model.generate(input_ids, max_length=self.max_length)
+
     def encode_sents(self, sents):
         # First encode sentences
         # Then find similarity
@@ -133,6 +143,13 @@ def make_memory_bank():
     return MemoryBank(nli_tokenizer, nli_model, qa_tokenizer, qa_model, 3)
 
 
+def test_qa_model():
+    mem_bank = make_memory_bank()
+    output = mem_bank.ask_question("Is an american bison a mammal?")
+    mem_bank.qa_tokenizer.batch_decode(mem_bank.ask_question(
+        "Is an american bison a mammal"), skip_special_tokens=True)
+
+
 def tester():
     mem_bank = make_memory_bank()
     qa_1 = ("Is an owl a mammal?", "yes")
@@ -143,8 +160,9 @@ def tester():
 
 
 if __name__ == '__main__':
-    tester()
+    # tester()
 
+    test_qa_model()
     # mem_bank = make_memory_bank()
     # premise = "Is an owl a mammal? yes"
     # hypothesis = "Does an owl have a vertebrate? yes"
