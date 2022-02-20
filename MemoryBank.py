@@ -1,23 +1,31 @@
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import faiss
 from sentence_transformers import SentenceTransformer
 
 
 class MemoryBank:
-    def __init__(self, nli_model, n_semantic, tokenizer, threshold=0.6):
-        self.mem_bank = []
+    def __init__(self, tokenizer, nli_model, qa_model, n_semantic, threshold=0.6):
+
+        # Sentence tokenizer
+        self.tokenizer = tokenizer
+        # Outputs relation of premise and hypothesis
         self.nli_model = nli_model
+        # Question answering model
+        self.qa_model = qa_model
         # Number of semantically similar constraints to compare against
         self.n_semantic = n_semantic
-        self.tokenizer = tokenizer
+        # Plaintext beliefs: question answer pairs
+        self.mem_bank = []
+        # Embedded sentence index, allows us to look up quickly
+        self.index = None
+        # Similarity threshold for index lookup
+        self.threshold = threshold
         # Maximum number of characters in input sequence
         self.max_length = 256
-        # Means of looking up semantically similar sentences quickly
-        self.index = None
+
         # Model that goes from sentence to sentence representation
         self.sent_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-        self.threshold = threshold
 
     def encode_sents(self, sents):
         # First encode sentences
@@ -62,20 +70,24 @@ class MemoryBank:
         # build index to add to index
         self.build_index(s_embed)
 
-    def compute_nli(self, premise, hypothesis):
+    def compute_relation(self, premise, hypothesis):
         tokenized_input_seq_pair = self.tokenizer.encode_plus(premise, hypothesis,
                                                               max_length=self.max_length,
                                                               return_token_type_ids=True, truncation=True)
-        input_ids = torch.Tensor(tokenized_input_seq_pair['input_ids']).long().unsqueeze(0)
+        input_ids = torch.Tensor(
+            tokenized_input_seq_pair['input_ids']).long().unsqueeze(0)
         # remember bart doesn't have 'token_type_ids', remove the line below if you are using bart.
-        token_type_ids = torch.Tensor(tokenized_input_seq_pair['token_type_ids']).long().unsqueeze(0)
-        attention_mask = torch.Tensor(tokenized_input_seq_pair['attention_mask']).long().unsqueeze(0)
+        token_type_ids = torch.Tensor(
+            tokenized_input_seq_pair['token_type_ids']).long().unsqueeze(0)
+        attention_mask = torch.Tensor(
+            tokenized_input_seq_pair['attention_mask']).long().unsqueeze(0)
         outputs = self.nli_model(input_ids,
                                  attention_mask=attention_mask,
                                  token_type_ids=token_type_ids,
                                  labels=None)
         # print(outputs)
-        predicted_probability = torch.softmax(outputs[0], dim=1)[0].tolist()  # batch_size only one
+        predicted_probability = torch.softmax(outputs[0], dim=1)[
+            0].tolist()  # batch_size only one
         return predicted_probability
 
 
@@ -84,16 +96,20 @@ class MemoryBank:
 """
 
 
-# batch the inputs
-# produce model predictions
-# use memory bank for check consistency
-
-def tester():
-    from transformers import AutoModelForSequenceClassification
+def make_memory_bank():
+    """
+    Make a standard memoroy bank with the models we are currently investigating
+    """
     hg_model_hub_name = "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
     tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
-    nli_model = AutoModelForSequenceClassification.from_pretrained(hg_model_hub_name)
-    mem_bank = MemoryBank(nli_model, 3, tokenizer)
+    nli_model = AutoModelForSequenceClassification.from_pretrained(
+        hg_model_hub_name)
+    qa_model = None
+    return MemoryBank(tokenizer, nli_model, qa_model, 3)
+
+
+def tester():
+    mem_bank = make_memory_bank()
     qa_1 = ("Is an owl a mammal?", "yes")
     qa_2 = ("Does a owl have a vertebrate?", "yes")
     mem_bank.add_to_bank(qa_1)
@@ -103,17 +119,11 @@ def tester():
 
 if __name__ == '__main__':
     tester()
-    # '''A basic test of MemoryBank with RoBERTa.'''
-    # from transformers import AutoModelForSequenceClassification
-    #
-    # hg_model_hub_name = "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
-    # tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
-    # nli_model = AutoModelForSequenceClassification.from_pretrained(hg_model_hub_name)
-    # mem_bank = MemoryBank(nli_model, 3, tokenizer)
-    #
+
+    # mem_bank = make_memory_bank()
     # premise = "Is an owl a mammal? yes"
     # hypothesis = "Does an owl have a vertebrate? yes"
-    # e, n, c = mem_bank.compute_nli(premise, hypothesis)
+    # e, n, c = mem_bank.compute_relation(premise, hypothesis)
     #
     # print('-' * 80)
     # print('Testing NLI model')
