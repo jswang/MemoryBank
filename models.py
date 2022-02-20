@@ -1,3 +1,6 @@
+import torch
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(f"Using device {device}")
 
 # Our first configuration for the model
 standard_config = {
@@ -14,5 +17,7 @@ standard_config = {
     # Threshold used to lookup in faiss indexer
     "sentence_similarity_threshold": 0.6,
     # Whether we flip answers to questions
-    "flip_constraints": False
+    "flip_constraints": False,
+    # Device: defaults to whatever is available
+    "device": device
 }
