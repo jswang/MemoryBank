@@ -4,7 +4,7 @@ standard_config = {
     # NLI model which outputs relation of premise and hypothesis
     "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
     # Question answering model
-    "qa_model": "allenai/macaw-large",
+    "qa_model": "allenai/macaw_large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
     # Number of semantically similar constraints to compare against
