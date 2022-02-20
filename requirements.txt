@@ -82,3 +82,4 @@ wasabi==0.9.0
 wcwidth==0.2.5
 protobuf==3.19.4
 tqdm
+sklearn
