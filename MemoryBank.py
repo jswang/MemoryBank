@@ -2,37 +2,40 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, Auto
 import torch
 import faiss
 from sentence_transformers import SentenceTransformer
+from models import standard_config
 
 
 class MemoryBank:
-    def __init__(self, nli_tokenizer, nli_model, qa_tokenizer, qa_model, n_semantic, threshold=0.6, flip=False):
+    def __init__(self, config=standard_config):
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
-        self.nli_tokenizer = nli_tokenizer
-        self.nli_model = nli_model
+        self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
+        self.nli_model = AutoModelForSequenceClassification.from_pretrained(
+            config["nli_model"])
 
         # Question answering model and tokenizer
-        self.qa_tokenizer = qa_tokenizer
-        self.qa_model = qa_model
+        self.qa_tokenizer = AutoTokenizer.from_pretrained(config["qa_model"])
+        self.qa_model = AutoModelForSeq2SeqLM.from_pretrained(
+            config["qa_model"])
 
         # Number of semantically similar constraints to compare against
-        self.n_semantic = n_semantic
+        self.n_semantic = config["n_semantic"]
         # Plaintext beliefs: question answer pairs
         self.mem_bank = []
         # Embedded sentence index, allows us to look up quickly
         self.index = None
         # Similarity threshold for index lookup
-        self.threshold = threshold
+        self.threshold = config["sentence_similarity_threshold"]
         # Maximum number of characters in input sequence
-        self.max_length = 256
+        self.max_length = config["max_input_char_length"]
         # Whether we use the flipping functionality
-        self.flip = flip
+        self.flip = config["flip_constraints"]
 
         # Model that goes from sentence to sentence representation
-        self.sent_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+        self.sent_model = SentenceTransformer(config["sentence_model"])
 
     def ask_question(self, question):
-        """Given a questions, answer yes or no"""
+        """Ask the Macam model a yes or now question."""
         input_string = f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {question}"
         input_ids = self.qa_tokenizer.encode(input_string, return_tensors="pt")
         encoded_output = self.qa_model.generate(
@@ -128,30 +131,15 @@ class MemoryBank:
         return predicted_probability
 
 
-def make_memory_bank():
-    """
-    Make a standard memoroy bank with the models we are currently investigating
-    """
-    hg_model_hub_name = "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
-    nli_tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
-    qa_model_hub_name = "allenai/macaw-large"
-    qa_tokenizer = AutoTokenizer.from_pretrained(qa_model_hub_name)
-    qa_model = AutoModelForSeq2SeqLM.from_pretrained(qa_model_hub_name)
-
-    nli_model = AutoModelForSequenceClassification.from_pretrained(
-        hg_model_hub_name)
-    return MemoryBank(nli_tokenizer, nli_model, qa_tokenizer, qa_model, 3)
-
-
 def test_qa_model():
-    mem_bank = make_memory_bank()
+    mem_bank = MemoryBank()
     output = mem_bank.ask_question("Is an american bison a mammal?")
     mem_bank.qa_tokenizer.batch_decode(mem_bank.ask_question(
         "Is an american bison a mammal"), skip_special_tokens=True)
 
 
 def tester():
-    mem_bank = make_memory_bank()
+    mem_bank = MemoryBank()
     qa_1 = ("Is an owl a mammal?", "yes")
     qa_2 = ("Does a owl have a vertebrate?", "yes")
     mem_bank.add_to_bank(qa_1)
