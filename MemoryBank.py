@@ -35,14 +35,14 @@ class MemoryBank:
         self.sent_model = SentenceTransformer(config["sentence_model"])
 
     def ask_question(self, question):
-        """Ask the Macam model a yes or now question."""
+        """Ask the Macaw model a yes or no question."""
         input_string = f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {question}"
         input_ids = self.qa_tokenizer.encode(input_string, return_tensors="pt")
         encoded_output = self.qa_model.generate(
             input_ids, max_length=self.max_length)
-        self.qa_tokenizer.batch_decode(
+        ans = self.qa_tokenizer.batch_decode(
             encoded_output, skip_special_tokens=True)
-        return self.qa_model.generate(input_ids, max_length=self.max_length)
+        return ans[0].split('$answer$ = ')[1]
 
     def encode_sents(self, sents):
         # First encode sentences
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     # tester()
 
     test_qa_model()
-    # mem_bank = make_memory_bank()
+
     # premise = "Is an owl a mammal? yes"
     # hypothesis = "Does an owl have a vertebrate? yes"
     # e, n, c = mem_bank.compute_relation(premise, hypothesis)
