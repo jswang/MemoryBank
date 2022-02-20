@@ -3,6 +3,7 @@
 """
 import pickle
 
+
 def _check_overlap(cand, l_str):
     for l in l_str:
         if l in cand:
@@ -38,6 +39,7 @@ def _template_lookup(ent, relation, prop):
 def translate_text(file):
     '''
     Convert silver facts file containing relations to yes/no QA pairs.
+    Returns: List of tuples, tuple[0] = question, tuple[1] = answer
     '''
     entities = list(file.keys())
 #   print(entities)
@@ -69,23 +71,29 @@ def translate_conllu(question, answer, filename):
     f_con.writelines(total_file)
 
 
+def write_to_text(tuples_qa, file):
+    """Write a list of question answer tuples to a text file, separated by a comma."""
+    with open(file, "w") as f:
+        for t in tuples_qa:
+            f.write(f"{t[0]}, {t[1]}\n")
+
+
 if __name__ == '__main__':
     '''
-    Test funcitonality by running the file.
+    Test functionality by running the file.
     '''
     import os
     import json
     json_file = json.load(open("silver_facts.json"))
-    # print(json_file)
-
     t_qa = translate_text(json_file)
+    write_to_text(t_qa, "silver_facts.txt")
 
+    # Visualization of the question + answer pairs
     print('-'*80)
     print('testing translate_text:\n')
     # print 10 examples
     for qa in t_qa[:10]:
         print(qa)
-
     print('-'*80)
 
     pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
