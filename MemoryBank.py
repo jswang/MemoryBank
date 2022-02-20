@@ -1,18 +1,20 @@
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM
 import torch
 import faiss
 from sentence_transformers import SentenceTransformer
 
 
 class MemoryBank:
-    def __init__(self, tokenizer, nli_model, qa_model, n_semantic, threshold=0.6, flip=False):
+    def __init__(self, nli_tokenizer, nli_model, qa_tokenizer, qa_model, n_semantic, threshold=0.6, flip=False):
 
-        # Sentence tokenizer
-        self.tokenizer = tokenizer
-        # Outputs relation of premise and hypothesis
+        # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
+        self.nli_tokenizer = nli_tokenizer
         self.nli_model = nli_model
-        # Question answering model
+
+        # Question answering model and tokenizer
+        self.qa_tokenizer = qa_tokenizer
         self.qa_model = qa_model
+
         # Number of semantically similar constraints to compare against
         self.n_semantic = n_semantic
         # Plaintext beliefs: question answer pairs
@@ -116,21 +118,19 @@ class MemoryBank:
         return predicted_probability
 
 
-"""
-  TODO: Write the whole pipeline, taking in the QA model
-"""
-
-
 def make_memory_bank():
     """
     Make a standard memoroy bank with the models we are currently investigating
     """
     hg_model_hub_name = "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
-    tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
+    nli_tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
+    qa_model_hub_name = "allenai/macaw-large"
+    qa_tokenizer = AutoTokenizer.from_pretrained(qa_model_hub_name)
+    qa_model = AutoModelForSeq2SeqLM.from_pretrained(qa_model_hub_name)
+
     nli_model = AutoModelForSequenceClassification.from_pretrained(
         hg_model_hub_name)
-    qa_model = None
-    return MemoryBank(tokenizer, nli_model, qa_model, 3)
+    return MemoryBank(nli_tokenizer, nli_model, qa_tokenizer, qa_model, 3)
 
 
 def tester():
