@@ -13,15 +13,19 @@ class MemoryBank:
         """
         Create a MemoryBank model based on configuration.
         """
+        self.device = config["device"]
+        # TODO put back
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
-        self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
-        self.nli_model = AutoModelForSequenceClassification.from_pretrained(
-            config["nli_model"])
+        # self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
+        # self.nli_model = AutoModelForSequenceClassification.from_pretrained(
+        #     config["nli_model"])
+        # self.nli_model.to(self.device)
 
         # Question answering model and tokenizer
         self.qa_tokenizer = AutoTokenizer.from_pretrained(config["qa_model"])
         self.qa_model = AutoModelForSeq2SeqLM.from_pretrained(
             config["qa_model"])
+        self.qa_model.to(self.device)
 
         # Number of semantically similar constraints to compare against
         self.n_semantic = config["n_semantic"]
@@ -37,20 +41,25 @@ class MemoryBank:
         self.flip = config["flip_constraints"]
 
         # Model that goes from sentence to sentence representation
-        self.sent_model = SentenceTransformer(config["sentence_model"])
+        # TODO put back
+        # self.sent_model = SentenceTransformer(config["sentence_model"])
+        # self.sent_model.to(self.device)
 
-    def ask_question(self, question):
+    def ask_questions(self, questions):
         """
-        Ask the Macaw model a yes or no question.
+        Ask the Macaw model a batch of yes or no questions.
         Returns "yes" or "no"
         """
-        input_string = f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {question}"
-        input_ids = self.qa_tokenizer.encode(input_string, return_tensors="pt")
+        input_string = [
+            f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
+        input_ids = self.qa_tokenizer(
+            input_string, padding=True, truncation=True, return_tensors="pt")
+        input_ids.to(self.device)
         encoded_output = self.qa_model.generate(
-            input_ids, max_length=self.max_length)
+            input_ids["input_ids"], max_length=self.max_length)
         ans = self.qa_tokenizer.batch_decode(
             encoded_output, skip_special_tokens=True)
-        return ans[0].split('$answer$ = ')[1]
+        return [a.split('$answer$ = ')[1] for a in ans]
 
     def encode_sents(self, sents):
         # First encode sentences
@@ -144,7 +153,7 @@ if __name__ == '__main__':
     mem_bank = MemoryBank()
 
     # Ask a question
-    ans = mem_bank.ask_question("Is an owl a mammmal?")
+    ans = mem_bank.ask_questions("Is an owl a mammmal?")
     print(f"Model responded:{ans}")
 
     # Add facts to the memory bank:
