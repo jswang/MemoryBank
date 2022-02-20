@@ -6,27 +6,26 @@ from sentence_transformers import SentenceTransformer
 
 class MemoryBank:
     def __init__(self, nli_model, n_semantic, tokenizer):
+        # Raw question answer pair
         self.mem_bank = []
+        # Means of looking up semantically similar sentences quickly
+        self.belief_index = None
+
         self.nli_model = nli_model
         # Number of semantically similar constraints to compare against
         self.n_semantic = n_semantic
         self.tokenizer = tokenizer
         # Maximum number of characters in input sequence
         self.max_length = 256
-        # Means of looking up semantically similar sentences quickly
-        self.belief_index = None
-        # Model that goes from sentence to sentence representation
-        self.sent_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+
+        # Model to compute dense vector representation for sentence, paragraphs, and images.
+        self.sentence_embedder = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
     def encode_sents(self, sents):
         # First encode sentences
         # Then find similarity
-        s_embed = self.sent_model.encode(sents)
+        s_embed = self.sentence_embedder.encode(sents)
         return s_embed
-
-    def build_index(self, s_embed):
-        # print(index.is_trained)
-        self.index.add(s_embed)
 
     def retrieve_from_index(self, s_new):
         """
@@ -39,17 +38,22 @@ class MemoryBank:
     """
 
     def add_to_bank(self, qa_pair):
+        """ Given a Question answer pair, add plaintext
+        to memory bank and embedded representation to index"""
         # TODO: Future -> Add declarative statement
         # self.mem_bank.append(declare_change(qa_pair))
         self.mem_bank.append(" ".join(qa_pair))
         s_embed = self.encode_sents(" ".join(qa_pair))
+        # build index to add to index
         if self.index is None:
             d = s_embed.shape[1]  # dimension
             self.index = faiss.IndexFlatL2(d)
+        else:
+            self.index.add(s_embed)
 
-        # build index to add to index
 
-    def compute_nli(self, premise, hypothesis):
+
+    def compute_relation(self, premise, hypothesis):
         """ Given a premise and a hypothesis, ouput predicted probabilities
             for relationship between premise and hypothesis: (entailment, neutral, hypothes)"""
         tokenized_input_seq_pair = self.tokenizer.encode_plus(premise, hypothesis,
@@ -82,7 +86,7 @@ class MemoryBank:
 
 
 if __name__ == '__main__':
-    '''A basic test of MemoryBank with RoBERTa.'''
+    """A basic test of MemoryBank with RoBERTa."""
     from transformers import AutoModelForSequenceClassification
 
     hg_model_hub_name = "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
@@ -93,7 +97,7 @@ if __name__ == '__main__':
 
     premise = "Is an owl a mammal? yes"
     hypothesis = "Does an owl have a vertebrate? yes"
-    e, n, c = mem_bank.compute_nli(premise, hypothesis)
+    e, n, c = mem_bank.compute_relation(premise, hypothesis)
 
     print('-' * 80)
     print('Testing NLI model')
