@@ -16,7 +16,7 @@ class MemoryBank:
     self.belief_index = None
     # Model that goes from sentence to sentence representation
     self.sent_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-  
+
   def encode_sents(self, sents):
     # First encode sentences
     # Then find similarity
@@ -37,7 +37,7 @@ class MemoryBank:
     """
       TODO: Do we want any additional criteria
     """
-  
+
   def add_to_bank(self, qa_pair):
     # TODO: Future -> Add declarative statement
     # self.mem_bank.append(declare_change(qa_pair))
@@ -46,10 +46,13 @@ class MemoryBank:
     if self.index is None:
       d = s_embed.shape[1]  # dimension
       self.index = faiss.IndexFlatL2(d)
+
     # build index to add to index
-    
-  
+
+
   def compute_nli(self, premise, hypothesis):
+    """Given a premise and a hypothesis, ouput predicted probabilities
+        for relationship between premise and hypothesis: (entailment, neutral, hypothes)"""
     tokenized_input_seq_pair = self.tokenizer.encode_plus(premise, hypothesis,
                                                      max_length=self.max_length,
                                                      return_token_type_ids=True, truncation=True)
