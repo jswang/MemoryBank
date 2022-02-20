@@ -1,7 +1,7 @@
 """
   TODO: Code to translate from beliefbank graphs to plain natural language texts
 """
-
+import pickle
 
 def _check_overlap(cand, l_str):
     for l in l_str:
@@ -87,6 +87,8 @@ if __name__ == '__main__':
         print(qa)
 
     print('-'*80)
+
+    pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
 
     print('testing translate_conllu:\n')
     print('src: ("Is an owl a mammal?", "yes")')
