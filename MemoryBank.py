@@ -1,13 +1,18 @@
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, logging
 import torch
 import faiss
 from sentence_transformers import SentenceTransformer
 from models import standard_config
 
+# only log errors
+logging.set_verbosity_error()
+
 
 class MemoryBank:
     def __init__(self, config=standard_config):
-
+        """
+        Create a MemoryBank model based on configuration.
+        """
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
         self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
         self.nli_model = AutoModelForSequenceClassification.from_pretrained(
@@ -35,7 +40,10 @@ class MemoryBank:
         self.sent_model = SentenceTransformer(config["sentence_model"])
 
     def ask_question(self, question):
-        """Ask the Macaw model a yes or no question."""
+        """
+        Ask the Macaw model a yes or no question.
+        Returns "yes" or "no"
+        """
         input_string = f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {question}"
         input_ids = self.qa_tokenizer.encode(input_string, return_tensors="pt")
         encoded_output = self.qa_model.generate(
@@ -131,38 +139,19 @@ class MemoryBank:
         return predicted_probability
 
 
-def test_qa_model():
+if __name__ == '__main__':
+    # Examples of how to instantiate and use the memory bank
     mem_bank = MemoryBank()
-    output = mem_bank.ask_question("Is an american bison a mammal?")
-    mem_bank.qa_tokenizer.batch_decode(mem_bank.ask_question(
-        "Is an american bison a mammal"), skip_special_tokens=True)
 
+    # Ask a question
+    ans = mem_bank.ask_question("Is an owl a mammmal?")
+    print(f"Model responded:{ans}")
 
-def tester():
-    mem_bank = MemoryBank()
+    # Add facts to the memory bank:
     qa_1 = ("Is an owl a mammal?", "yes")
     qa_2 = ("Does a owl have a vertebrate?", "yes")
     mem_bank.add_to_bank(qa_1)
+
+    # Retreive sentences
     s2 = mem_bank.encode_sents([mem_bank.translate_qa(qa_2)])
     print(mem_bank.retrieve_from_index(s2))
-
-
-if __name__ == '__main__':
-    # tester()
-
-    test_qa_model()
-
-    # premise = "Is an owl a mammal? yes"
-    # hypothesis = "Does an owl have a vertebrate? yes"
-    # e, n, c = mem_bank.compute_relation(premise, hypothesis)
-    #
-    # print('-' * 80)
-    # print('Testing NLI model')
-    # print('-' * 80)
-    # print(f'Premise:\n{premise}\n')
-    # print(f'Hypothesis:\n{hypothesis}\n')
-    # print("Scores:")
-    # print("Entailment:", e)
-    # print("Neutral:", n)
-    # print("Contradiction:", c)
-    # print('-' * 80)
