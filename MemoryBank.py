@@ -42,8 +42,8 @@ class MemoryBank:
         """
         retrieved = []
         for i in range(I.shape[-1]):
-            retrieved.append(self.mem_bank[I[i]])
-        return retrieved
+            retrieved.append(self.translate_qa(self.mem_bank[I[i]]))
+        return retrieved, I
 
     def translate_qa(self, qa_pair):
         return " ".join(qa_pair)
@@ -53,6 +53,11 @@ class MemoryBank:
         # self.mem_bank.append(declare_change(qa_pair))
         # Appending only the QA pair to make flipping easier
         # TODO: Add the flip
+        new_entry = self.translate_qa(qa_pair)
+        s_new = self.encode_sents([new_entry])
+        retrieved, inds = mem_bank.retrieve_from_index(s_new)
+        # TODO: Implement flip or keep function
+        self.flip_or_keep(retrieved, new_entry)
         self.mem_bank.append(qa_pair)
         new_entry = self.translate_qa(qa_pair)
         s_embed = self.encode_sents([new_entry])
@@ -94,7 +99,7 @@ def tester():
     tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
     nli_model = AutoModelForSequenceClassification.from_pretrained(hg_model_hub_name)
     mem_bank = MemoryBank(nli_model, 3, tokenizer)
-    qa_1 = ("Is an owl a mammal?", "yes")
+    qa_1 = ("Is an owl a mammal?", "no")
     qa_2 = ("Does a owl have a vertebrate?", "yes")
     mem_bank.add_to_bank(qa_1)
     s2 = mem_bank.encode_sents([mem_bank.translate_qa(qa_2)])
