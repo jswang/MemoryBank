@@ -2,6 +2,8 @@
   TODO: Code to translate from beliefbank graphs to plain natural language texts
 """
 import pickle
+import os
+import json
 
 
 def _check_overlap(cand, l_str):
@@ -42,7 +44,7 @@ def translate_text(file):
     Returns: List of tuples, tuple[0] = question, tuple[1] = answer
     '''
     entities = list(file.keys())
-#   print(entities)
+
     true_qa_pairs = []
     for e in entities:
         relations = list(file[e].keys())
@@ -72,21 +74,24 @@ def translate_conllu(question, answer, filename):
 
 
 def write_to_text(tuples_qa, file):
-    """Write a list of question answer tuples to a text file, separated by a comma."""
+    """
+    Write a list of question answer tuples to a text file.
+    Every question answer pair is on it's own line, they're separated by a comma.
+    """
     with open(file, "w") as f:
         for t in tuples_qa:
             f.write(f"{t[0]}, {t[1]}\n")
 
 
 if __name__ == '__main__':
-    '''
+    """
     Test functionality by running the file.
-    '''
-    import os
-    import json
+    """
+    # From silver_facts.json, generate silver_facts.txt and silver_tuples.p
     json_file = json.load(open("silver_facts.json"))
     t_qa = translate_text(json_file)
     write_to_text(t_qa, "silver_facts.txt")
+    pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
 
     # Visualization of the question + answer pairs
     print('-'*80)
@@ -96,8 +101,7 @@ if __name__ == '__main__':
         print(qa)
     print('-'*80)
 
-    pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
-
+    # Testing translate_conllu
     print('testing translate_conllu:\n')
     print('src: ("Is an owl a mammal?", "yes")')
     translate_conllu("Is an owl a mammal?", "yes", "tmp_conllu.conllu")

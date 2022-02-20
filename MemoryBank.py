@@ -14,12 +14,12 @@ class MemoryBank:
         Create a MemoryBank model based on configuration.
         """
         self.device = config["device"]
-        # TODO put back
+
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
-        # self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
-        # self.nli_model = AutoModelForSequenceClassification.from_pretrained(
-        #     config["nli_model"])
-        # self.nli_model.to(self.device)
+        self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
+        self.nli_model = AutoModelForSequenceClassification.from_pretrained(
+            config["nli_model"])
+        self.nli_model.to(self.device)
 
         # Question answering model and tokenizer
         self.qa_tokenizer = AutoTokenizer.from_pretrained(config["qa_model"])
@@ -41,9 +41,8 @@ class MemoryBank:
         self.flip = config["flip_constraints"]
 
         # Model that goes from sentence to sentence representation
-        # TODO put back
-        # self.sent_model = SentenceTransformer(config["sentence_model"])
-        # self.sent_model.to(self.device)
+        self.sent_model = SentenceTransformer(config["sentence_model"])
+        self.sent_model.to(self.device)
 
     def ask_questions(self, questions):
         """
