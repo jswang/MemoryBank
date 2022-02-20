@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 
 
 class MemoryBank:
-    def __init__(self, tokenizer, nli_model, qa_model, n_semantic, threshold=0.6):
+    def __init__(self, tokenizer, nli_model, qa_model, n_semantic, threshold=0.6, flip=False):
 
         # Sentence tokenizer
         self.tokenizer = tokenizer
@@ -23,6 +23,8 @@ class MemoryBank:
         self.threshold = threshold
         # Maximum number of characters in input sequence
         self.max_length = 256
+        # Whether we use the flipping functionality
+        self.flip = flip
 
         # Model that goes from sentence to sentence representation
         self.sent_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
@@ -50,8 +52,26 @@ class MemoryBank:
         """
         retrieved = []
         for i in range(I.shape[-1]):
-            retrieved.append(self.mem_bank[I[i]])
-        return retrieved
+            retrieved.append(self.translate_qa(self.mem_bank[I[i]]))
+        return retrieved, I
+
+    def flip_pair(self, qa_pair):
+        if qa_pair[1] == "yes":
+            return (qa_pair[0], "no")
+        else:
+            return (qa_pair[0], "yes")
+
+    def flip_or_keep(self, retrieved, inds, qa_pair):
+        relations = []
+        qa_sent = self.translate_qa(qa_pair)
+        for i in range(len(retrieved)):
+            relations.append(self.compute_relation(retrieved[i], qa_sent))
+        # TODO: Decide weighting
+        # TODO: Flip the beliefs using flip_pair function
+        flip_input = False
+        if flip_input:
+            return self.flip_pair(qa_pair)
+        return qa_pair
 
     def translate_qa(self, qa_pair):
         return " ".join(qa_pair)
@@ -61,6 +81,11 @@ class MemoryBank:
         # self.mem_bank.append(declare_change(qa_pair))
         # Appending only the QA pair to make flipping easier
         # TODO: Add the flip
+        if self.flip:
+            new_entry = self.translate_qa(qa_pair)
+            s_embed = self.encode_sents([new_entry])
+            retrieved, inds = self.retrieve_from_index(s_embed)
+            qa_pair = self.flip_or_keep(retrieved, inds, qa_pair)
         self.mem_bank.append(qa_pair)
         new_entry = self.translate_qa(qa_pair)
         s_embed = self.encode_sents([new_entry])
