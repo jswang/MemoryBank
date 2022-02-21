@@ -60,39 +60,24 @@ def _declarative_template_lookup(ent, relation, prop, ans):
     ent = ent[0].upper() + ent[1:]
 
     if relation == "HasPart" or relation == "HasA":
-      if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
-          prop = _modify_entity(prop)
-      if ans == 'yes':
-        return "{entity} has {prop}".format(entity=ent, prop=prop)
-      else:
-        return "{entity} does not have {prop}".format(entity=ent, prop=prop)
+        if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
+            prop = _modify_entity(prop)
+        return "{entity} has {prop}".format(entity=ent, prop=prop), "{entity} does not have {prop}".format(entity=ent, prop=prop)
 
     elif relation == "MadeOf":
-      if ans == 'yes':
-        return "{entity} is made of {prop}".format(entity=ent, prop=prop)
-      else:
-        return "{entity} is not made of {prop}".format(entity=ent, prop=prop)
+        return "{entity} is made of {prop}".format(entity=ent, prop=prop), "{entity} is not made of {prop}".format(entity=ent, prop=prop)
 
     elif relation == "CapableOf":
-      if prop == "eating":
-          prop = "eat"
-      if ans == 'yes':
-        return "{entity} can {prop}".format(entity=ent, prop=prop)
-      else:
-        return "{entity} cannot {prop}".format(entity=ent, prop=prop)
+        if prop == "eating":
+            prop = "eat" 
+        return "{entity} can {prop}".format(entity=ent, prop=prop), "{entity} cannot {prop}".format(entity=ent, prop=prop)
 
     elif relation == "IsA":
-      prop = _modify_entity(prop)
-      if ans == 'yes':
-        return "{entity} is {prop}".format(entity=ent, prop=prop)
-      else:
-        return "{entity} is not {prop}".format(entity=ent, prop=prop)
+        prop = _modify_entity(prop)
+        return "{entity} is {prop}".format(entity=ent, prop=prop), "{entity} is not {prop}".format(entity=ent, prop=prop)
 
     else:
-      if ans == 'yes':
-        return "{entity} is {prop}".format(entity=ent, prop=prop)
-      else:
-        return "{entity} is not {prop}".format(entity=ent, prop=prop)
+        return "{entity} is {prop}".format(entity=ent, prop=prop), "{entity} is not {prop}".format(entity=ent, prop=prop)
 
 def translate_text_declarative(file):
     '''
@@ -153,16 +138,17 @@ if __name__ == '__main__':
     for qa in t_qa[:5]:
         print(qa)
 
-    t_qa = translate_text_declarative(json_file)
-    write_to_text(t_qa, "silver_facts.txt")
-    pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
+    declarative_statements = translate_text_declarative(json_file)
+    write_to_text(declarative_statements, "silver_facts_declarative.txt")
+    pickle.dump(declarative_statements, open("silver_facts_declarative.p", "wb+"))
 
     # Visualization of the question + answer pairs
     print('-'*80)
     print('testing translate_text_declarative:\n')
     # print 5 examples
-    for qa in t_qa[:5]:
-        print(qa)
+    for yes, no in declarative_statements[:5]:
+        print(yes)
+        print(no)
     print('-'*80)
 
     # Testing translate_conllu
