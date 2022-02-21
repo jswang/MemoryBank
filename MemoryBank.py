@@ -1,8 +1,11 @@
+import random
+
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, logging
 import torch
 import faiss
 from sentence_transformers import SentenceTransformer
 from models import standard_config
+import json
 
 # only log errors
 logging.set_verbosity_error()
@@ -39,18 +42,52 @@ class MemoryBank:
         self.max_length = config["max_input_char_length"]
         # Whether we use the flipping functionality
         self.flip = config["flip_constraints"]
+        # The type of feedback we will be creating
+        self.feedback = config["feedback_type"]
+        if self.feedback == "topic":
+            self.entities_dict = {k: [] for k in json.load(open("silver_facts.json")).keys()}
+        else:
+            self.entities_dict = dict()
+        self.n_feedback = 3
 
         # Model that goes from sentence to sentence representation
         self.sent_model = SentenceTransformer(config["sentence_model"])
         self.sent_model.to(self.device)
+        self.qa_dec_dict = None
+
+    def find_same_topic(self, question):
+        ret_qs = []
+        for e in self.entities_dict:
+            if e in question:
+                ret_qs = random.choices(self.entities_dict[e], k=self.n_feedback)
+                self.entities_dict[e].append(question)
+        return ret_qs
+
+    def generate_feedback(self, questions):
+        cqs = []
+        for q in questions:
+            if self.feedback == "relevant":
+                s_embed = self.encode_sents([q])
+                retrieved, I = self.retrieve_from_index(s_embed)
+                contxt = " ".join([retrieved[i] for i in I[:self.n_feedback]])
+            else:
+                contxt = " ".join(self.find_same_topic(q))
+            cqs.append((contxt, q))
+        return cqs
 
     def ask_questions(self, questions):
         """
         Ask the Macaw model a batch of yes or no questions.
         Returns "yes" or "no"
         """
-        input_string = [
-            f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
+        if self.feedback is not None:
+            c_q_pairs = self.generate_feedback(questions)
+            input_string = [
+                f"$answer$ ; $mcoptions$ = (A) yes (B) no; $context$ = {c} ; $question$ = {q}"
+                for c, q in c_q_pairs]
+        else:
+            input_string = [
+                f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
         input_ids = self.qa_tokenizer(
             input_string, padding=True, truncation=True, return_tensors="pt")
         input_ids.to(self.device)
@@ -78,6 +115,8 @@ class MemoryBank:
         faiss.normalize_L2(x=s_new)
         lims, D, I = self.index.range_search(x=s_new, thresh=self.threshold)
         # I is the indices
+        print(lims)
+        print(D)
         """
           TODO: Do we want any additional criteria
         """

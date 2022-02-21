@@ -7,7 +7,7 @@ standard_config = {
     # NLI model which outputs relation of premise and hypothesis
     "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
     # Question answering model
-    "qa_model": "allenai/macaw_large",
+    "qa_model": "allenai/macaw-large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
     # Number of semantically similar constraints to compare against
@@ -18,6 +18,8 @@ standard_config = {
     "sentence_similarity_threshold": 0.6,
     # Whether we flip answers to questions
     "flip_constraints": False,
+    # Whether we add feedback
+    "feedback_type": "relevant",
     # Device: defaults to whatever is available
     "device": device
 }
