@@ -6,3 +6,7 @@ env/
 calibration_facts.json
 constraints_v2.json
 silver_facts.json
+
+# misc
+__pycache__/
+.vscode/

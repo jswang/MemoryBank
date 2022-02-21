@@ -19,7 +19,7 @@ def _modify_entity(ent):
     return "a " + ent
 
 
-def _template_lookup(ent, relation, prop):
+def _yesno_template_lookup(ent, relation, prop):
     ent = _modify_entity(ent)
     if relation == "HasPart" or relation == "HasA":
         if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
@@ -38,7 +38,7 @@ def _template_lookup(ent, relation, prop):
         return "Is {entity} {prop}?".format(entity=ent, prop=prop)
 
 
-def translate_text(file):
+def translate_text_yesno(file):
     '''
     Convert silver facts file containing relations to yes/no QA pairs.
     Returns: List of tuples, tuple[0] = question, tuple[1] = answer
@@ -50,10 +50,63 @@ def translate_text(file):
         relations = list(file[e].keys())
         for r in relations:
             true_qa_pairs.append(
-                (_template_lookup(e, r.split(",")[0], r.split(",")[1]), file[e][r]))
+                (_yesno_template_lookup(e, r.split(",")[0], r.split(",")[1]), file[e][r]))
 
     return true_qa_pairs
 
+
+def _declarative_template_lookup(ent, relation, prop, ans):
+    ent = _modify_entity(ent)
+    ent = ent[0].upper() + ent[1:]
+
+    if relation == "HasPart" or relation == "HasA":
+      if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
+          prop = _modify_entity(prop)
+      if ans == 'yes':
+        return "{entity} has {prop}".format(entity=ent, prop=prop)
+      else:
+        return "{entity} does not have {prop}".format(entity=ent, prop=prop)
+
+    elif relation == "MadeOf":
+      if ans == 'yes':
+        return "{entity} is made of {prop}".format(entity=ent, prop=prop)
+      else:
+        return "{entity} is not made of {prop}".format(entity=ent, prop=prop)
+
+    elif relation == "CapableOf":
+      if prop == "eating":
+          prop = "eat"
+      if ans == 'yes':
+        return "{entity} can {prop}".format(entity=ent, prop=prop)
+      else:
+        return "{entity} cannot {prop}".format(entity=ent, prop=prop)
+
+    elif relation == "IsA":
+      prop = _modify_entity(prop)
+      if ans == 'yes':
+        return "{entity} is {prop}".format(entity=ent, prop=prop)
+      else:
+        return "{entity} is not {prop}".format(entity=ent, prop=prop)
+
+    else:
+      if ans == 'yes':
+        return "{entity} is {prop}".format(entity=ent, prop=prop)
+      else:
+        return "{entity} is not {prop}".format(entity=ent, prop=prop)
+
+def translate_text_declarative(file):
+    '''
+    Convert silver facts file containing relations to declarative statements.
+    '''
+    entities = list(file.keys())
+#   print(entities)
+    true_statements = []
+    for e in entities:
+        relations = list(file[e].keys())
+        for r in relations:
+            true_statements.append(_declarative_template_lookup(e, r.split(",")[0], r.split(",")[1], file[e][r]))
+
+    return true_statements
 
 def translate_conllu(question, answer, filename):
     question = question.replace("?", " ?")
@@ -89,15 +142,15 @@ if __name__ == '__main__':
     """
     # From silver_facts.json, generate silver_facts.txt and silver_tuples.p
     json_file = json.load(open("silver_facts.json"))
-    t_qa = translate_text(json_file)
+    t_qa = translate_text_yesno(json_file)
     write_to_text(t_qa, "silver_facts.txt")
     pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
 
     # Visualization of the question + answer pairs
     print('-'*80)
-    print('testing translate_text:\n')
-    # print 10 examples
-    for qa in t_qa[:10]:
+    print('testing translate_text_declarative:\n')
+    # print 5 examples
+    for qa in t_qa[:5]:
         print(qa)
     print('-'*80)
 

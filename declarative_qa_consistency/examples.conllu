@@ -1,0 +1,8 @@
+1	Who	who	PRON	WP	_	2	nsubj	_	_
+2	died	die	VERB	VBD	Tense=Past|VerbForm=Fin	0	root	_	_
+3	in	in	ADP	IN	_	2	prep	_	_
+4	1285	1285	NUM	CD	NumType=Card	3	pobj	_	_
+5	?	?	PUNCT	.	PunctType=Peri	2	punct	_	_
+
+1	Zhenjin	Zhenjin	PROPN	NNP	Number=Sing	0	root	_	_
+
