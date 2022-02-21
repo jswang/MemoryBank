@@ -1,6 +1,9 @@
 """
   TODO: Code to translate from beliefbank graphs to plain natural language texts
 """
+import pickle
+import os
+import json
 
 
 def _check_overlap(cand, l_str):
@@ -38,9 +41,10 @@ def _yesno_template_lookup(ent, relation, prop):
 def translate_text_yesno(file):
     '''
     Convert silver facts file containing relations to yes/no QA pairs.
+    Returns: List of tuples, tuple[0] = question, tuple[1] = answer
     '''
     entities = list(file.keys())
-#   print(entities)
+
     true_qa_pairs = []
     for e in entities:
         relations = list(file[e].keys())
@@ -122,34 +126,35 @@ def translate_conllu(question, answer, filename):
     f_con.writelines(total_file)
 
 
+def write_to_text(tuples_qa, file):
+    """
+    Write a list of question answer tuples to a text file.
+    Every question answer pair is on it's own line, they're separated by a comma.
+    """
+    with open(file, "w") as f:
+        for t in tuples_qa:
+            f.write(f"{t[0]}, {t[1]}\n")
+
+
 if __name__ == '__main__':
-    '''
-    Test funcitonality by running the file.
-    '''
-    import os
-    import json
+    """
+    Test functionality by running the file.
+    """
+    # From silver_facts.json, generate silver_facts.txt and silver_tuples.p
     json_file = json.load(open("silver_facts.json"))
-    # print(json_file)
-
     t_qa = translate_text_yesno(json_file)
+    write_to_text(t_qa, "silver_facts.txt")
+    pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
 
-    print('-'*80)
-    print('testing translate_text_yesno:\n')
-    # print 5 examples
-    for qa in t_qa[:5]:
-        print(qa)
-
-
-    t_qa = translate_text_declarative(json_file)
-
+    # Visualization of the question + answer pairs
     print('-'*80)
     print('testing translate_text_declarative:\n')
     # print 5 examples
     for qa in t_qa[:5]:
         print(qa)
-
     print('-'*80)
 
+    # Testing translate_conllu
     print('testing translate_conllu:\n')
     print('src: ("Is an owl a mammal?", "yes")')
     translate_conllu("Is an owl a mammal?", "yes", "tmp_conllu.conllu")

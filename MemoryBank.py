@@ -1,23 +1,64 @@
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, logging
 import torch
 import faiss
 from sentence_transformers import SentenceTransformer
+from models import standard_config
+
+# only log errors
+logging.set_verbosity_error()
 
 
 class MemoryBank:
-    def __init__(self, nli_model, n_semantic, tokenizer, threshold=0.6):
-        self.mem_bank = []
-        self.nli_model = nli_model
+    def __init__(self, config=standard_config):
+        """
+        Create a MemoryBank model based on configuration.
+        """
+        self.device = config["device"]
+
+        # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
+        self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
+        self.nli_model = AutoModelForSequenceClassification.from_pretrained(
+            config["nli_model"])
+        self.nli_model.to(self.device)
+
+        # Question answering model and tokenizer
+        self.qa_tokenizer = AutoTokenizer.from_pretrained(config["qa_model"])
+        self.qa_model = AutoModelForSeq2SeqLM.from_pretrained(
+            config["qa_model"])
+        self.qa_model.to(self.device)
+
         # Number of semantically similar constraints to compare against
-        self.n_semantic = n_semantic
-        self.tokenizer = tokenizer
-        # Maximum number of characters in input sequence
-        self.max_length = 256
-        # Means of looking up semantically similar sentences quickly
+        self.n_semantic = config["n_semantic"]
+        # Plaintext beliefs: question answer pairs
+        self.mem_bank = []
+        # Embedded sentence index, allows us to look up quickly
         self.index = None
+        # Similarity threshold for index lookup
+        self.threshold = config["sentence_similarity_threshold"]
+        # Maximum number of characters in input sequence
+        self.max_length = config["max_input_char_length"]
+        # Whether we use the flipping functionality
+        self.flip = config["flip_constraints"]
+
         # Model that goes from sentence to sentence representation
-        self.sent_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-        self.threshold = threshold
+        self.sent_model = SentenceTransformer(config["sentence_model"])
+        self.sent_model.to(self.device)
+
+    def ask_questions(self, questions):
+        """
+        Ask the Macaw model a batch of yes or no questions.
+        Returns "yes" or "no"
+        """
+        input_string = [
+            f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
+        input_ids = self.qa_tokenizer(
+            input_string, padding=True, truncation=True, return_tensors="pt")
+        input_ids.to(self.device)
+        encoded_output = self.qa_model.generate(
+            input_ids["input_ids"], max_length=self.max_length)
+        ans = self.qa_tokenizer.batch_decode(
+            encoded_output, skip_special_tokens=True)
+        return [a.split('$answer$ = ')[1] for a in ans]
 
     def encode_sents(self, sents):
         # First encode sentences
@@ -42,8 +83,26 @@ class MemoryBank:
         """
         retrieved = []
         for i in range(I.shape[-1]):
-            retrieved.append(self.mem_bank[I[i]])
-        return retrieved
+            retrieved.append(self.translate_qa(self.mem_bank[I[i]]))
+        return retrieved, I
+
+    def flip_pair(self, qa_pair):
+        if qa_pair[1] == "yes":
+            return (qa_pair[0], "no")
+        else:
+            return (qa_pair[0], "yes")
+
+    def flip_or_keep(self, retrieved, inds, qa_pair):
+        relations = []
+        qa_sent = self.translate_qa(qa_pair)
+        for i in range(len(retrieved)):
+            relations.append(self.compute_relation(retrieved[i], qa_sent))
+        # TODO: Decide weighting
+        # TODO: Flip the beliefs using flip_pair function
+        flip_input = False
+        if flip_input:
+            return self.flip_pair(qa_pair)
+        return qa_pair
 
     def translate_qa(self, qa_pair):
         return " ".join(qa_pair)
@@ -53,6 +112,11 @@ class MemoryBank:
         # self.mem_bank.append(declare_change(qa_pair))
         # Appending only the QA pair to make flipping easier
         # TODO: Add the flip
+        if self.flip:
+            new_entry = self.translate_qa(qa_pair)
+            s_embed = self.encode_sents([new_entry])
+            retrieved, inds = self.retrieve_from_index(s_embed)
+            qa_pair = self.flip_or_keep(retrieved, inds, qa_pair)
         self.mem_bank.append(qa_pair)
         new_entry = self.translate_qa(qa_pair)
         s_embed = self.encode_sents([new_entry])
@@ -62,66 +126,40 @@ class MemoryBank:
         # build index to add to index
         self.build_index(s_embed)
 
-    def compute_nli(self, premise, hypothesis):
+    def compute_relation(self, premise, hypothesis):
         tokenized_input_seq_pair = self.tokenizer.encode_plus(premise, hypothesis,
                                                               max_length=self.max_length,
                                                               return_token_type_ids=True, truncation=True)
-        input_ids = torch.Tensor(tokenized_input_seq_pair['input_ids']).long().unsqueeze(0)
+        input_ids = torch.Tensor(
+            tokenized_input_seq_pair['input_ids']).long().unsqueeze(0)
         # remember bart doesn't have 'token_type_ids', remove the line below if you are using bart.
-        token_type_ids = torch.Tensor(tokenized_input_seq_pair['token_type_ids']).long().unsqueeze(0)
-        attention_mask = torch.Tensor(tokenized_input_seq_pair['attention_mask']).long().unsqueeze(0)
+        token_type_ids = torch.Tensor(
+            tokenized_input_seq_pair['token_type_ids']).long().unsqueeze(0)
+        attention_mask = torch.Tensor(
+            tokenized_input_seq_pair['attention_mask']).long().unsqueeze(0)
         outputs = self.nli_model(input_ids,
                                  attention_mask=attention_mask,
                                  token_type_ids=token_type_ids,
                                  labels=None)
         # print(outputs)
-        predicted_probability = torch.softmax(outputs[0], dim=1)[0].tolist()  # batch_size only one
+        predicted_probability = torch.softmax(outputs[0], dim=1)[
+            0].tolist()  # batch_size only one
         return predicted_probability
 
 
-"""
-  TODO: Write the whole pipeline, taking in the QA model
-"""
+if __name__ == '__main__':
+    # Examples of how to instantiate and use the memory bank
+    mem_bank = MemoryBank()
 
+    # Ask a question
+    ans = mem_bank.ask_questions("Is an owl a mammmal?")
+    print(f"Model responded:{ans}")
 
-# batch the inputs
-# produce model predictions
-# use memory bank for check consistency
-
-def tester():
-    from transformers import AutoModelForSequenceClassification
-    hg_model_hub_name = "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
-    tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
-    nli_model = AutoModelForSequenceClassification.from_pretrained(hg_model_hub_name)
-    mem_bank = MemoryBank(nli_model, 3, tokenizer)
+    # Add facts to the memory bank:
     qa_1 = ("Is an owl a mammal?", "yes")
     qa_2 = ("Does a owl have a vertebrate?", "yes")
     mem_bank.add_to_bank(qa_1)
+
+    # Retreive sentences
     s2 = mem_bank.encode_sents([mem_bank.translate_qa(qa_2)])
     print(mem_bank.retrieve_from_index(s2))
-
-
-if __name__ == '__main__':
-    tester()
-    # '''A basic test of MemoryBank with RoBERTa.'''
-    # from transformers import AutoModelForSequenceClassification
-    #
-    # hg_model_hub_name = "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli"
-    # tokenizer = AutoTokenizer.from_pretrained(hg_model_hub_name)
-    # nli_model = AutoModelForSequenceClassification.from_pretrained(hg_model_hub_name)
-    # mem_bank = MemoryBank(nli_model, 3, tokenizer)
-    #
-    # premise = "Is an owl a mammal? yes"
-    # hypothesis = "Does an owl have a vertebrate? yes"
-    # e, n, c = mem_bank.compute_nli(premise, hypothesis)
-    #
-    # print('-' * 80)
-    # print('Testing NLI model')
-    # print('-' * 80)
-    # print(f'Premise:\n{premise}\n')
-    # print(f'Hypothesis:\n{hypothesis}\n')
-    # print("Scores:")
-    # print("Entailment:", e)
-    # print("Neutral:", n)
-    # print("Contradiction:", c)
-    # print('-' * 80)
