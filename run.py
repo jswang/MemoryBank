@@ -47,6 +47,6 @@ if __name__ == "__main__":
     mem_bank = MemoryBank()
 
     # Evaluate baseline on silver facts
-    data = utils.translate_text(json.load(open("silver_facts.json")))
+    data = utils.translate_text_yesno(json.load(open("silver_facts.json")))
     utils.write_to_text(data, "silver_facts.txt")
     evaluate_baseline(mem_bank, data, "baseline_output.txt")
