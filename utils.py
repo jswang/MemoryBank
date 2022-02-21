@@ -148,6 +148,17 @@ if __name__ == '__main__':
 
     # Visualization of the question + answer pairs
     print('-'*80)
+    print('testing translate_text_yesno:\n')
+    # print 5 examples
+    for qa in t_qa[:5]:
+        print(qa)
+
+    t_qa = translate_text_declarative(json_file)
+    write_to_text(t_qa, "silver_facts.txt")
+    pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
+
+    # Visualization of the question + answer pairs
+    print('-'*80)
     print('testing translate_text_declarative:\n')
     # print 5 examples
     for qa in t_qa[:5]:
