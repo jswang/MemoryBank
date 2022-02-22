@@ -19,23 +19,23 @@ def _modify_entity(ent):
     return "a " + ent
 
 
-def _yesno_template_lookup(ent, relation, prop):
+def _yesno_template_lookup(ent, relation, prop, answer):
     ent = _modify_entity(ent)
     if relation == "HasPart" or relation == "HasA":
         if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
             prop = _modify_entity(prop)
-        return "Does {entity} have {prop}?".format(entity=ent, prop=prop)
+        return "Does {entity} have {prop}?".format(entity=ent, prop=prop), answer
     elif relation == "MadeOf":
-        return "Is {entity} made of {prop}?".format(entity=ent, prop=prop)
+        return "Is {entity} made of {prop}?".format(entity=ent, prop=prop), answer
     elif relation == "CapableOf":
         if prop == "eating":
             prop = "eat"
-        return "Can {entity} {prop}?".format(entity=ent, prop=prop)
+        return "Can {entity} {prop}?".format(entity=ent, prop=prop), answer
     elif relation == "IsA":
         prop = _modify_entity(prop)
-        return "Is {entity} {prop}?".format(entity=ent, prop=prop)
+        return "Is {entity} {prop}?".format(entity=ent, prop=prop), answer
     else:
-        return "Is {entity} {prop}?".format(entity=ent, prop=prop)
+        return "Is {entity} {prop}?".format(entity=ent, prop=prop), answer
 
 
 def translate_text_yesno(file):
@@ -49,13 +49,12 @@ def translate_text_yesno(file):
     for e in entities:
         relations = list(file[e].keys())
         for r in relations:
-            true_qa_pairs.append(
-                (_yesno_template_lookup(e, r.split(",")[0], r.split(",")[1]), file[e][r]))
+            true_qa_pairs.append(_yesno_template_lookup(e, r.split(',')[0], r.split(',')[1], file[e][r]))
 
     return true_qa_pairs
 
 
-def _declarative_template_lookup(ent, relation, prop, ans):
+def _declarative_template_lookup(ent, relation, prop):
     ent = _modify_entity(ent)
     ent = ent[0].upper() + ent[1:]
 
@@ -89,7 +88,7 @@ def translate_text_declarative(file):
     for e in entities:
         relations = list(file[e].keys())
         for r in relations:
-            true_statements.append(_declarative_template_lookup(e, r.split(",")[0], r.split(",")[1], file[e][r]))
+            true_statements.append(_declarative_template_lookup(e, r.split(",")[0], r.split(",")[1]))
 
     return true_statements
 

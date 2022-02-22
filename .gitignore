@@ -9,4 +9,5 @@ silver_facts.json
 
 # misc
 __pycache__/
-.vscode/
+.vscode*
+.DS_Store

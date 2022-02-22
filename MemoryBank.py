@@ -1,11 +1,14 @@
 import random
+from typing import Tuple
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, logging
 import torch
+import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 from models import standard_config
 import json
+from MemoryEntry import MemoryEntry
 
 # only log errors
 logging.set_verbosity_error()
@@ -55,7 +58,7 @@ class MemoryBank:
         self.sent_model.to(self.device)
         self.qa_dec_dict = None
 
-    def find_same_topic(self, question):
+    def find_same_topic(self, question: str) -> list[str]:
         ret_qs = []
         for e in self.entities_dict:
             if e in question:
@@ -63,19 +66,19 @@ class MemoryBank:
                 self.entities_dict[e].append(question)
         return ret_qs
 
-    def generate_feedback(self, questions):
+    def generate_feedback(self, questions: list[str]) -> list[str]:
         cqs = []
         for q in questions:
             if self.feedback == "relevant":
                 s_embed = self.encode_sents([q])
                 retrieved, I = self.retrieve_from_index(s_embed)
-                contxt = " ".join([retrieved[i] for i in I[:self.n_feedback]])
+                contxt = " ".join([retrieved[i].get_declarative_statement() for i in I[:self.n_feedback]])
             else:
                 contxt = " ".join(self.find_same_topic(q))
             cqs.append((contxt, q))
         return cqs
 
-    def ask_questions(self, questions):
+    def ask_questions(self, questions: list[str]) -> list[str]:
         """
         Ask the Macaw model a batch of yes or no questions.
         Returns "yes" or "no"
@@ -97,22 +100,26 @@ class MemoryBank:
             encoded_output, skip_special_tokens=True)
         return [a.split('$answer$ = ')[1] for a in ans]
 
-    def encode_sents(self, sents):
+    def encode_sents(self, sents: list[str]) -> np.array:
         # First encode sentences
         # Then find similarity
         s_embed = self.sent_model.encode(sents)
         return s_embed
 
-    def build_index(self, s_embed):
+    def build_index(self, s_embed: np.array):
         # print(index.is_trained)
-        faiss.normalize_L2(x=s_embed)
+        # faiss.normalize_L2(x=s_embed)
+        s_embed /= np.linalg.norm(s_embed)
         self.index.add(s_embed)
 
-    def retrieve_from_index(self, s_new):
+    def retrieve_from_index(self, s_new) -> Tuple[list[MemoryEntry], np.array]:
         """
           Retrieving top n_semantic sentences
         """
-        faiss.normalize_L2(x=s_new)
+        # faiss.normalize_L2(x=s_new)
+        if self.index is None:
+            return [], np.array([])
+        s_new /= np.linalg.norm(s_new,)
         lims, D, I = self.index.range_search(x=s_new, thresh=self.threshold)
         # I is the indices
         print(lims)
@@ -122,50 +129,48 @@ class MemoryBank:
         """
         retrieved = []
         for i in range(I.shape[-1]):
-            retrieved.append(self.translate_qa(self.mem_bank[I[i]]))
+            e = self.mem_bank[I[i]]
+            retrieved.append(e)
         return retrieved, I
 
-    def flip_pair(self, qa_pair):
-        if qa_pair[1] == "yes":
-            return (qa_pair[0], "no")
-        else:
-            return (qa_pair[0], "yes")
-
-    def flip_or_keep(self, retrieved, inds, qa_pair):
+    def flip_or_keep(self, retrieved: list[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
         relations = []
-        qa_sent = self.translate_qa(qa_pair)
+        statement = entry.get_declarative_statement()
         for i in range(len(retrieved)):
-            relations.append(self.compute_relation(retrieved[i], qa_sent))
+            relations.append(self.compute_relation(retrieved[i].get_declarative_statement(), statement))
         # TODO: Decide weighting
         # TODO: Flip the beliefs using flip_pair function
         flip_input = False
         if flip_input:
-            return self.flip_pair(qa_pair)
-        return qa_pair
+            entry.flip()
+        return entry
 
     def translate_qa(self, qa_pair):
         return " ".join(qa_pair)
 
-    def add_to_bank(self, qa_pair):
+    def add_to_bank(self, entity: str, relation: str, answer: str):
+        ''' Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')'''
         # TODO: Future -> Add declarative statement
         # self.mem_bank.append(declare_change(qa_pair))
         # Appending only the QA pair to make flipping easier
         # TODO: Add the flip
+        new_entry = MemoryEntry(entity, relation, answer)
         if self.flip:
-            new_entry = self.translate_qa(qa_pair)
-            s_embed = self.encode_sents([new_entry])
+            # new_entry = self.translate_qa(qa_pair)
+            s_embed = self.encode_sents([new_entry.get_declarative_statement()])
             retrieved, inds = self.retrieve_from_index(s_embed)
-            qa_pair = self.flip_or_keep(retrieved, inds, qa_pair)
-        self.mem_bank.append(qa_pair)
-        new_entry = self.translate_qa(qa_pair)
-        s_embed = self.encode_sents([new_entry])
+            new_entry = self.flip_or_keep(retrieved, inds, new_entry)
+        self.mem_bank.append(new_entry)
+
+        # embed again in case statement was flipped
+        s_embed = self.encode_sents([new_entry.get_declarative_statement()])
         if self.index is None:
             d = s_embed.shape[1]  # dimension
             self.index = faiss.IndexFlatIP(d)
         # build index to add to index
         self.build_index(s_embed)
 
-    def compute_relation(self, premise, hypothesis):
+    def compute_relation(self, premise: str, hypothesis: str):
         tokenized_input_seq_pair = self.tokenizer.encode_plus(premise, hypothesis,
                                                               max_length=self.max_length,
                                                               return_token_type_ids=True, truncation=True)
@@ -191,14 +196,13 @@ if __name__ == '__main__':
     mem_bank = MemoryBank()
 
     # Ask a question
-    ans = mem_bank.ask_questions("Is an owl a mammmal?")
-    print(f"Model responded:{ans}")
+    # ans = mem_bank.ask_questions("Is an owl a mammmal?")
+    # print(f"Model responded:{ans}")
 
-    # Add facts to the memory bank:
-    qa_1 = ("Is an owl a mammal?", "yes")
-    qa_2 = ("Does a owl have a vertebrate?", "yes")
-    mem_bank.add_to_bank(qa_1)
+    e1 = ('owl', 'IsA,Mammal', 'yes')
+    e2 = MemoryEntry('owl', 'HasA,vertebrate', 'yes')
+    mem_bank.add_to_bank(*e1)
 
     # Retreive sentences
-    s2 = mem_bank.encode_sents([mem_bank.translate_qa(qa_2)])
+    s2 = mem_bank.encode_sents([e2.get_declarative_statement()])
     print(mem_bank.retrieve_from_index(s2))
