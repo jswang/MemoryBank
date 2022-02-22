@@ -3,6 +3,10 @@ from utils import _declarative_template_lookup, _yesno_template_lookup
 
 @dataclass
 class MemoryEntry:
+    """
+    Example: MemoryEntry("poodle", "IsA,dog", "yes")
+    Here, entity: "poodle", relation: "IsA,dog", answer: "yes"
+    """
     entity: str
     relation: str
     answer: str
@@ -12,24 +16,27 @@ class MemoryEntry:
 
     def get_neg_statement(self):
         return _declarative_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1])[1]
-    
+
     def get_declarative_statement(self):
         return _declarative_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
-    
+
     def get_question(self):
         return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[0]
-    
+
     def get_answer(self):
         return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[1]
-    
+
     def get_qa_pair(self):
         return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)
 
     def get_relation(self):
         return self.relation
-    
+
     def get_entity(self):
         return self.entity
+
+    def get_answer(self):
+        return self.answer
 
     def flip(self):
         self.answer = 'yes' if self.answer == 'no' else 'no'
