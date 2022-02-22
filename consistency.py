@@ -29,6 +29,7 @@ class Implication:
 
 # TODO can optimize this quite a bit probably. currently O(2n^2)
 def check_consistency(bank: List[MemoryEntry] , constraints: List[Implication]):
+    # 1. Gather all of the implications related to each entity in the statements
     implications = {}
     for mem_entry in bank:
         entity, ans, relation = mem_entry.get_entity(), mem_entry.get_answer(), mem_entry.get_relation()
@@ -41,10 +42,11 @@ def check_consistency(bank: List[MemoryEntry] , constraints: List[Implication]):
                 else:
                     implications[entity] = [c]
 
+
     violations = []
     violations_count = 0
     valid_count = 0
-    # for every statement, see if it violates any of the implications that have been activated
+    #2. for every statement, see if it violates any of the implications that have been activated, aka, p->q and q is false
     for mem_entry in bank:
         # For every activated implication, see if this statement contradicts the implications conclusion
         if mem_entry.get_entity() in implications:
@@ -97,10 +99,15 @@ def test_consistency():
     assert(violations == 1)
     assert(valid == 1)
 
+    # violates IsA,dog -> !IsA,horse
+    test_constraints = [Implication({"weight": "yes_no", "direction": "forward", "score": 10, "source": "IsA,dog", "target": "IsA,horse"})]
+    test_bank = [MemoryEntry("poodle", "IsA,dog", "yes"),
+                MemoryEntry("poodle", "IsA,horse", "yes")]
+    violations, valid = check_consistency(test_bank, test_constraints)
+    assert(violations == 1)
+    assert(valid == 1)
+
 if __name__ == "__main__":
-
-
-
     #  Unit tests
     test_consistency()
     test_implication()
