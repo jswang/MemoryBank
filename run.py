@@ -47,6 +47,18 @@ def evaluate_baseline(mem_bank, data, output_file, batch_size=400):
             print(f"Batch {i} accuracy: {accuracies[-1]}, f1_score: {f1_scores[-1]}, consistency: {consistencies[-1]}")
     return f1_scores, accuracies, consistencies
 
+def evaluate_model(mem_bank, data, output_file, batch_size=400):
+    questions = [q for (q, _) in data]
+        a_truth = torch.tensor([1 if a == "yes" else 0 for (_, a) in data])
+        for i in tqdm(range(0, len(questions), batch_size)):
+            end = i+min(batch_size, len(questions))
+            q_batch = questions[i:end]
+            a_pred_batch = mem_bank.forward(data)
+            a_pred_batch = torch.tensor(
+                [1 if a == "yes" else 0 for a in a_pred_batch])
+            f1_scores += [sklearn.metrics.f1_score(a_truth[i:end], a_pred_batch)]
+            accuracies += [torch.sum(a_truth[i:end] == a_pred_batch) / batch_size]
+
 if __name__ == "__main__":
     mem_bank = MemoryBank()
 

@@ -10,7 +10,7 @@ class MemoryEntry:
     """
     entity: str
     relation: str
-    answer: str
+    answer: str = None
 
     def get_pos_statement(self):
         return _declarative_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1])[0]
@@ -23,6 +23,9 @@ class MemoryEntry:
 
     def get_question(self):
         return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[0]
+
+    def set_answer(self, ans):
+        self.answer = ans
 
     def get_answer(self):
         return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[1]

@@ -2,7 +2,6 @@ from binascii import a2b_qp
 import json
 from nis import match
 from MemoryEntry import MemoryEntry
-from dataclasses import dataclass
 from typing import List
 
 class Implication:

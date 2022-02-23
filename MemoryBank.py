@@ -100,11 +100,6 @@ class MemoryBank:
             encoded_output, skip_special_tokens=True)
         return [a.split('$answer$ = ')[1] for a in ans]
 
-    def encode_sents(self, sents: List[str]) -> np.array:
-        # First encode sentences
-        # Then find similarity
-        s_embed = self.sent_model.encode(sents)
-        return s_embed
 
     def build_index(self, s_embed: np.array):
         # print(index.is_trained)
@@ -157,13 +152,13 @@ class MemoryBank:
         new_entry = MemoryEntry(entity, relation, answer)
         if self.flip:
             # new_entry = self.translate_qa(qa_pair)
-            s_embed = self.encode_sents([new_entry.get_declarative_statement()])
+            s_embed = self.sent_model.encode([new_entry.get_declarative_statement()])
             retrieved, inds = self.retrieve_from_index(s_embed)
             new_entry = self.flip_or_keep(retrieved, inds, new_entry)
         self.mem_bank.append(new_entry)
 
         # embed again in case statement was flipped
-        s_embed = self.encode_sents([new_entry.get_declarative_statement()])
+        s_embed = self.sent_model.encode([new_entry.get_declarative_statement()])
         if self.index is None:
             d = s_embed.shape[1]  # dimension
             self.index = faiss.IndexFlatIP(d)
@@ -189,6 +184,21 @@ class MemoryBank:
         predicted_probability = torch.softmax(outputs[0], dim=1)[
             0].tolist()  # batch_size only one
         return predicted_probability
+
+    def forward(self, inputs: Tuple[str, str, str]):
+        """
+        Forward pass of the model on a batch of triplets
+        Arguments:
+        `inputs` - batch of inputs to parse, expect of tuple of (entity, relation, answer)
+        """
+        # triplet to question
+        questions = [MemoryEntry(i[0], i[1]) for i in inputs]
+        # Ask your question
+        answers = self.ask_questions([q.get_question() for q in questions])
+        # Insert answer into memory entry
+        for (i, ans) in enumerate(answers):
+            questions[i].set_answer(ans)
+
 
 
 if __name__ == '__main__':
