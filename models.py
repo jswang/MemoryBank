@@ -21,7 +21,10 @@ standard_config = {
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
     # Device: defaults to whatever is available
-    "device": device
+    "device": device,
+    "flip_alpha": 1,
+    "flip_beta": 1,
+    "flip_gamme": 1
 }
 
 # Baseline, just question answering
@@ -43,5 +46,8 @@ baseline_config = {
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
     # Device: defaults to whatever is available
-    "device": device
+    "device": device,
+    "flip_alpha": 1,
+    "flip_beta": 1,
+    "flip_gamme": 1
 }

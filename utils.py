@@ -38,7 +38,7 @@ def _yesno_template_lookup(ent, relation, prop, answer):
         return "Is {entity} {prop}?".format(entity=ent, prop=prop), answer
 
 
-def translate_text_yesno(file):
+def json_to_qas(file):
     '''
     Convert silver facts file containing relations to yes/no QA pairs.
     Returns: List of tuples, tuple[0] = question, tuple[1] = answer
@@ -49,7 +49,24 @@ def translate_text_yesno(file):
     for e in entities:
         relations = list(file[e].keys())
         for r in relations:
-            true_qa_pairs.append(_yesno_template_lookup(e, r.split(',')[0], r.split(',')[1], file[e][r]))
+            true_qa_pairs.append(_yesno_template_lookup(
+                e, r.split(',')[0], r.split(',')[1], file[e][r]))
+
+    return true_qa_pairs
+
+
+def json_to_tuples(file):
+    '''
+    Convert silver facts file containing relations to tuples
+    '''
+    entities = list(file.keys())
+
+    true_qa_pairs = []
+    for e in entities:
+        relations = list(file[e].keys())
+        for r in relations:
+            true_qa_pairs.append((
+                e, r, file[e][r]))
 
     return true_qa_pairs
 
@@ -68,7 +85,7 @@ def _declarative_template_lookup(ent, relation, prop):
 
     elif relation == "CapableOf":
         if prop == "eating":
-            prop = "eat" 
+            prop = "eat"
         return "{entity} can {prop}".format(entity=ent, prop=prop), "{entity} cannot {prop}".format(entity=ent, prop=prop)
 
     elif relation == "IsA":
@@ -77,6 +94,7 @@ def _declarative_template_lookup(ent, relation, prop):
 
     else:
         return "{entity} is {prop}".format(entity=ent, prop=prop), "{entity} is not {prop}".format(entity=ent, prop=prop)
+
 
 def translate_text_declarative(file):
     '''
@@ -88,9 +106,11 @@ def translate_text_declarative(file):
     for e in entities:
         relations = list(file[e].keys())
         for r in relations:
-            true_statements.append(_declarative_template_lookup(e, r.split(",")[0], r.split(",")[1]))
+            true_statements.append(_declarative_template_lookup(
+                e, r.split(",")[0], r.split(",")[1]))
 
     return true_statements
+
 
 def translate_conllu(question, answer, filename):
     question = question.replace("?", " ?")
@@ -126,20 +146,21 @@ if __name__ == '__main__':
     """
     # From silver_facts.json, generate silver_facts.txt and silver_tuples.p
     json_file = json.load(open("silver_facts.json"))
-    t_qa = translate_text_yesno(json_file)
+    t_qa = json_to_qas(json_file)
     write_to_text(t_qa, "silver_facts.txt")
     pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
 
     # Visualization of the question + answer pairs
     print('-'*80)
-    print('testing translate_text_yesno:\n')
+    print('testing json_to_qas:\n')
     # print 5 examples
     for qa in t_qa[:5]:
         print(qa)
 
     declarative_statements = translate_text_declarative(json_file)
     write_to_text(declarative_statements, "silver_facts_declarative.txt")
-    pickle.dump(declarative_statements, open("silver_facts_declarative.p", "wb+"))
+    pickle.dump(declarative_statements, open(
+        "silver_facts_declarative.p", "wb+"))
 
     # Visualization of the question + answer pairs
     print('-'*80)
