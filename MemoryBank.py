@@ -19,6 +19,9 @@ class MemoryBank:
         """
         Create a MemoryBank model based on configuration.
         """
+        self.alpha = config['flip_alpha']
+        self.beta = config['flip_beta']
+        self.gamme = config['flip_gamme']
         self.device = config["device"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
@@ -139,6 +142,7 @@ class MemoryBank:
             retrieved.append(e)
         return retrieved, I
 
+<<<<<<< HEAD
     def flip_or_keep(self, retrieved: List[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
         hypothesis = entry.get_declarative_statement()
 
@@ -173,6 +177,19 @@ class MemoryBank:
         else:
             entry.flip()
 
+=======
+    def flip_or_keep(self, retrieved: list[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
+        statement = entry.get_declarative_statement()
+
+        # of the form [(p_entailment, p_neutral, p_contradiction), ... ]
+        relations = [self.compute_relation(r.get_declarative_statement(), statement) for r in retrieved]
+        total_entail = sum(r[0] for r in relations)
+        total_contra = sum(r[2] for r in relations)
+        # TODO: Decide weighting
+        # TODO: Flip the beliefs using flip_pair function
+
+        self.flip_weight * total_contra > total_entail
+>>>>>>> e2efccda435996a366359caa3eee2636aa289776
         flip_input = True
         if flip_input:
             entry.flip()
@@ -183,10 +200,16 @@ class MemoryBank:
 
     def add_to_bank(self, new_entries: List[MemoryEntry]):
         ''' Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')'''
+<<<<<<< HEAD
         # TODO: Future -> Add declarative statement
         # self.mem_bank.append(declare_change(qa_pair))
         # Appending only the QA pair to make flipping easier
         if self.enable_flip:
+=======
+        # TODO: Add the flip
+        new_entry = MemoryEntry(entity, relation, answer)
+        if self.flip:
+>>>>>>> e2efccda435996a366359caa3eee2636aa289776
             # new_entry = self.translate_qa(qa_pair)
             s_embed = self.encode_sent(
                 [e.get_declarative_statement() for e in new_entries])

@@ -17,6 +17,7 @@ standard_config = {
     # Threshold used to lookup in faiss indexer
     "sentence_similarity_threshold": 0.6,
     # Whether we flip answers to questions
+<<<<<<< HEAD
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
@@ -42,6 +43,17 @@ baseline_config = {
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
+=======
+    "flip_constraints": False,
+    # Decision to flip:
+    # alpha * (original belief confidence) + beta * (# agreeing votes) - gamma * (#disagreeing votes) > 0
+    # < 0: flip
+    "flip_alpha": 1,
+    "flip_beta": 1,
+    "flip_gamma": 1,
+    # Whether we add feedback
+    "feedback_type": "relevant",
+>>>>>>> e2efccda435996a366359caa3eee2636aa289776
     # Device: defaults to whatever is available
     "device": device
 }
