@@ -5,8 +5,14 @@ from MemoryEntry import MemoryEntry
 from dataclasses import dataclass
 from typing import List
 
-@dataclass
 class Implication:
+    """
+    Stores an implication of the form:
+    source.ans[0] -> target.ans[1] with score x
+    E.g.
+    IsA,dog.yes -> hasA,nose.yes
+    """
+
     def __init__(self, link):
         """Given a link, make an implication"""
         self.score = link["score"]

@@ -1,5 +1,5 @@
 import random
-from typing import Tuple
+from typing import Tuple, List
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, logging
 import torch
@@ -58,7 +58,7 @@ class MemoryBank:
         self.sent_model.to(self.device)
         self.qa_dec_dict = None
 
-    def find_same_topic(self, question: str) -> list[str]:
+    def find_same_topic(self, question: str) -> List[str]:
         ret_qs = []
         for e in self.entities_dict:
             if e in question:
@@ -66,7 +66,7 @@ class MemoryBank:
                 self.entities_dict[e].append(question)
         return ret_qs
 
-    def generate_feedback(self, questions: list[str]) -> list[str]:
+    def generate_feedback(self, questions: List[str]) -> List[str]:
         cqs = []
         for q in questions:
             if self.feedback == "relevant":
@@ -78,7 +78,7 @@ class MemoryBank:
             cqs.append((contxt, q))
         return cqs
 
-    def ask_questions(self, questions: list[str]) -> list[str]:
+    def ask_questions(self, questions: List[str]) -> List[str]:
         """
         Ask the Macaw model a batch of yes or no questions.
         Returns "yes" or "no"
@@ -100,7 +100,7 @@ class MemoryBank:
             encoded_output, skip_special_tokens=True)
         return [a.split('$answer$ = ')[1] for a in ans]
 
-    def encode_sents(self, sents: list[str]) -> np.array:
+    def encode_sents(self, sents: List[str]) -> np.array:
         # First encode sentences
         # Then find similarity
         s_embed = self.sent_model.encode(sents)
@@ -112,7 +112,7 @@ class MemoryBank:
         s_embed /= np.linalg.norm(s_embed)
         self.index.add(s_embed)
 
-    def retrieve_from_index(self, s_new) -> Tuple[list[MemoryEntry], np.array]:
+    def retrieve_from_index(self, s_new) -> Tuple[List[MemoryEntry], np.array]:
         """
           Retrieving top n_semantic sentences
         """
@@ -133,7 +133,7 @@ class MemoryBank:
             retrieved.append(e)
         return retrieved, I
 
-    def flip_or_keep(self, retrieved: list[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
+    def flip_or_keep(self, retrieved: List[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
         relations = []
         statement = entry.get_declarative_statement()
         for i in range(len(retrieved)):

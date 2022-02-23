@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from utils import _declarative_template_lookup, _yesno_template_lookup
 
+
 @dataclass
 class MemoryEntry:
     """

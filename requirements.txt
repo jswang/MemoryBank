@@ -83,3 +83,4 @@ wcwidth==0.2.5
 protobuf==3.19.4
 tqdm
 sklearn
+matplotlib
