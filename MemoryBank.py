@@ -141,8 +141,6 @@ class MemoryBank:
         return retrieved, I
 
     def flip_or_keep(self, retrieved: List[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
-        hypothesis = entry.get_declarative_statement()
-
         hypothesis_score = entry.get_confidence()
         premise_scores = [r.get_confidence() for r in retrieved]  # for marty
 
@@ -151,32 +149,19 @@ class MemoryBank:
         n_contra = np.count_nonzero(
             np.array([np.argmax(p) == 2 for p in premise_scores]))
 
-        # for premise, score in zip(retrieved, premise_scores):
-        #     p_ent, p_neut, p_contra = self.get_relation(
-        #         premise.get_declarative_statement(), hypothesis)
-        #     a = np.argmax([p_ent, p_neut, p_contra])
-
-        #     if a == 2:
-        #         # contradiction
-        #         votes_keep_hypothesis = sum(
-        #             [hypothesis_score > p for p in premise_scores])
-        #         votes_keep_premise = sum(
-        #             [hypothesis_score < p for p in premise_scores])
-
         # if we have many entailments, the hypothesis is good and we should flip some premises
         if n_entail > n_contra:
             # flip premises whose QA scores are lower than hypothesis score
-            for idx in inds:
-                if retrieved[idx].confidence < entry.confidence:
-                    pass
-                    # retrieved[idx] =
-                    # TODO:
+            for idx, r in zip(inds, retrieved):
+                if r.confidence < hypothesis_score:
+                    self.mem_bank[idx].flip()
+                    # TODO (IMPORTANT): we need to update the embeddings in our FAISS index
+
+                    # idsel = faiss.IDSelector(k1, faiss.swig_ptr(np.array(ids)))
+                    # index.remove_ids(idsel)
         else:
             entry.flip()
 
-        flip_input = True
-        if flip_input:
-            entry.flip()
         return entry
 
     def encode_sent(self, sentences):
