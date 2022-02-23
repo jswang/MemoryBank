@@ -19,6 +19,9 @@ class MemoryBank:
         """
         Create a MemoryBank model based on configuration.
         """
+        self.alpha = config['flip_alpha']
+        self.beta = config['flip_beta']
+        self.gamme = config['flip_gamme']
         self.device = config["device"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
@@ -128,14 +131,18 @@ class MemoryBank:
             retrieved.append(e)
         return retrieved, I
 
-    def flip_or_keep(self, retrieved: List[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
-        relations = []
+    def flip_or_keep(self, retrieved: list[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
         statement = entry.get_declarative_statement()
-        for i in range(len(retrieved)):
-            relations.append(self.compute_relation(retrieved[i].get_declarative_statement(), statement))
+
+        # of the form [(p_entailment, p_neutral, p_contradiction), ... ]
+        relations = [self.compute_relation(r.get_declarative_statement(), statement) for r in retrieved]
+        total_entail = sum(r[0] for r in relations)
+        total_contra = sum(r[2] for r in relations)
         # TODO: Decide weighting
         # TODO: Flip the beliefs using flip_pair function
-        flip_input = False
+
+        self.flip_weight * total_contra > total_entail
+        flip_input = True
         if flip_input:
             entry.flip()
         return entry
@@ -145,9 +152,6 @@ class MemoryBank:
 
     def add_to_bank(self, entity: str, relation: str, answer: str):
         ''' Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')'''
-        # TODO: Future -> Add declarative statement
-        # self.mem_bank.append(declare_change(qa_pair))
-        # Appending only the QA pair to make flipping easier
         # TODO: Add the flip
         new_entry = MemoryEntry(entity, relation, answer)
         if self.flip:

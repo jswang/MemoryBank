@@ -18,6 +18,12 @@ standard_config = {
     "sentence_similarity_threshold": 0.6,
     # Whether we flip answers to questions
     "flip_constraints": False,
+    # Decision to flip:
+    # alpha * (original belief confidence) + beta * (# agreeing votes) - gamma * (#disagreeing votes) > 0
+    # < 0: flip
+    "flip_alpha": 1,
+    "flip_beta": 1,
+    "flip_gamma": 1,
     # Whether we add feedback
     "feedback_type": "relevant",
     # Device: defaults to whatever is available
