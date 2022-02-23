@@ -10,6 +10,7 @@ class MemoryEntry:
     """
     entity: str
     relation: str
+    confidence: float = None
     answer: str = None
 
     def get_pos_statement(self):
@@ -42,8 +43,15 @@ class MemoryEntry:
     def get_answer(self):
         return self.answer
 
+    def set_confidence(self, conf):
+        self.confidence = conf
+
+    def get_confidence(self):
+        return self.confidence
+
     def flip(self):
         self.answer = 'yes' if self.answer == 'no' else 'no'
+        self.confidence = 1.5 - self.confidence
 
 
 if __name__ == '__main__':

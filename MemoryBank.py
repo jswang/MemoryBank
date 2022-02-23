@@ -44,11 +44,12 @@ class MemoryBank:
         # Maximum number of characters in input sequence
         self.max_length = config["max_input_char_length"]
         # Whether we use the flipping functionality
-        self.flip = config["flip_constraints"]
+        self.enable_flip = config["enable_flip"]
         # The type of feedback we will be creating
         self.feedback = config["feedback_type"]
         if self.feedback == "topic":
-            self.entities_dict = {k: [] for k in json.load(open("silver_facts.json")).keys()}
+            self.entities_dict = {k: [] for k in json.load(
+                open("silver_facts.json")).keys()}
         else:
             self.entities_dict = dict()
         self.n_feedback = 3
@@ -58,48 +59,59 @@ class MemoryBank:
         self.sent_model.to(self.device)
         self.qa_dec_dict = None
 
-    def find_same_topic(self, question: str) -> List[str]:
-        ret_qs = []
-        for e in self.entities_dict:
-            if e in question:
-                ret_qs = random.choices(self.entities_dict[e], k=self.n_feedback)
-                self.entities_dict[e].append(question)
-        return ret_qs
+    def find_same_topic(self, questions: List[str]) -> List[str]:
+        """
+        Given a list of questions, return all of the related topic sentences in a single string
+        """
+        result_topics = []
+        for q in questions:
+            for e in self.entities_dict:
+                if e in q:
+                    topics = random.choices(
+                        self.entities_dict[e], k=self.n_feedback)
+                    result_topics += [" ".join(topics)]
+                    self.entities_dict[e].append(q)
+        return result_topics
 
     def generate_feedback(self, questions: List[str]) -> List[str]:
-        cqs = []
-        for q in questions:
-            if self.feedback == "relevant":
-                s_embed = self.encode_sents([q])
-                retrieved, I = self.retrieve_from_index(s_embed)
-                contxt = " ".join([retrieved[i].get_declarative_statement() for i in I[:self.n_feedback]])
-            else:
-                contxt = " ".join(self.find_same_topic(q))
-            cqs.append((contxt, q))
-        return cqs
+        """
+        Given a list of questions, retrieve semantically similar sentences for context
+        """
+        context = []
+        if self.feedback == "relevant":
+            s_embed = self.encode_sent(questions)
+            retrieved, I = self.retrieve_from_index(
+                s_embed)  # TODO here
+            contxt = " ".join(
+                [retrieved[i].get_declarative_statement() for i in I[:self.n_feedback]])
+        else:
+            contxt = self.find_same_topic(questions)
+            context += [contxt]
+        return context
 
-    def ask_questions(self, questions: List[str]) -> List[str]:
+    def ask_questions(self, questions: List[str], context: List[Tuple(str, str)]) -> List[str]:
         """
         Ask the Macaw model a batch of yes or no questions.
         Returns "yes" or "no"
         """
-        if self.feedback is not None:
-            c_q_pairs = self.generate_feedback(questions)
+        # Insert feedback if necesasry
+        if len(context) == len(questions):
             input_string = [
-                f"$answer$ ; $mcoptions$ = (A) yes (B) no; $context$ = {c} ; $question$ = {q}"
-                for c, q in c_q_pairs]
+                f"$answer$ ; $mcoptions$ = (A) yes (B) no; $context$ = {context[i]} ; $question$ = {questions[i]}"
+                for i in range(len(context))]
         else:
             input_string = [
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
+        # Tokenize questions
         input_ids = self.qa_tokenizer(
             input_string, padding=True, truncation=True, return_tensors="pt")
         input_ids.to(self.device)
+        # Ask the questions
         encoded_output = self.qa_model.generate(
             input_ids["input_ids"], max_length=self.max_length)
         ans = self.qa_tokenizer.batch_decode(
             encoded_output, skip_special_tokens=True)
         return [a.split('$answer$ = ')[1] for a in ans]
-
 
     def build_index(self, s_embed: np.array):
         # print(index.is_trained)
@@ -109,19 +121,18 @@ class MemoryBank:
 
     def retrieve_from_index(self, s_new) -> Tuple[List[MemoryEntry], np.array]:
         """
-          Retrieving top n_semantic sentences
+        Retrieving top n_semantic sentences from MemoryBank.
+        s_new is a stacked Tensor, first dimension is batch
         """
         # faiss.normalize_L2(x=s_new)
         if self.index is None:
             return [], np.array([])
-        s_new /= np.linalg.norm(s_new,)
-        lims, D, I = self.index.range_search(x=s_new, thresh=self.threshold)
+        s_new /= np.linalg.norm(s_new)
         # I is the indices
-        print(lims)
-        print(D)
-        """
-          TODO: Do we want any additional criteria
-        """
+        _, _, I = self.index.range_search(x=s_new, thresh=self.threshold)
+
+        # TODO: Do we want any additional criteria?
+        # TODO this is definitely broken for s_new being two dimensional, Julie to fix
         retrieved = []
         for i in range(I.shape[-1]):
             e = self.mem_bank[I[i]]
@@ -129,43 +140,73 @@ class MemoryBank:
         return retrieved, I
 
     def flip_or_keep(self, retrieved: List[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
-        relations = []
-        statement = entry.get_declarative_statement()
-        for i in range(len(retrieved)):
-            relations.append(self.compute_relation(retrieved[i].get_declarative_statement(), statement))
-        # TODO: Decide weighting
-        # TODO: Flip the beliefs using flip_pair function
-        flip_input = False
+        hypothesis = entry.get_declarative_statement()
+
+        hypothesis_score = entry.get_confidence()
+        premise_scores = [r.get_confidence() for r in retrieved]  # for marty
+
+        n_entail = np.count_nonzero(
+            np.array([np.argmax(p) == 0 for p in premise_scores]))
+        n_contra = np.count_nonzero(
+            np.array([np.argmax(p) == 2 for p in premise_scores]))
+
+        # for premise, score in zip(retrieved, premise_scores):
+        #     p_ent, p_neut, p_contra = self.get_relation(
+        #         premise.get_declarative_statement(), hypothesis)
+        #     a = np.argmax([p_ent, p_neut, p_contra])
+
+        #     if a == 2:
+        #         # contradiction
+        #         votes_keep_hypothesis = sum(
+        #             [hypothesis_score > p for p in premise_scores])
+        #         votes_keep_premise = sum(
+        #             [hypothesis_score < p for p in premise_scores])
+
+        # if we have many entailments, the hypothesis is good and we should flip some premises
+        if n_entail > n_contra:
+            # flip premises whose QA scores are lower than hypothesis score
+            for idx in inds:
+                if retrieved[idx].confidence < entry.confidence:
+                    pass
+                    # retrieved[idx] =
+                    # TODO:
+        else:
+            entry.flip()
+
+        flip_input = True
         if flip_input:
             entry.flip()
         return entry
 
-    def translate_qa(self, qa_pair):
-        return " ".join(qa_pair)
+    def encode_sent(self, sentences):
+        return self.sent_model.encode(sentences, convert_to_tensor=True)
 
-    def add_to_bank(self, entity: str, relation: str, answer: str):
+    def add_to_bank(self, new_entries: List[MemoryEntry]):
         ''' Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')'''
         # TODO: Future -> Add declarative statement
         # self.mem_bank.append(declare_change(qa_pair))
         # Appending only the QA pair to make flipping easier
-        # TODO: Add the flip
-        new_entry = MemoryEntry(entity, relation, answer)
-        if self.flip:
+        if self.enable_flip:
             # new_entry = self.translate_qa(qa_pair)
-            s_embed = self.sent_model.encode([new_entry.get_declarative_statement()])
+            s_embed = self.encode_sent(
+                [e.get_declarative_statement() for e in new_entries])
             retrieved, inds = self.retrieve_from_index(s_embed)
-            new_entry = self.flip_or_keep(retrieved, inds, new_entry)
-        self.mem_bank.append(new_entry)
+            new_entries = self.flip_or_keep(retrieved, inds, new_entry)
+        self.mem_bank.append(new_entries)
 
         # embed again in case statement was flipped
-        s_embed = self.sent_model.encode([new_entry.get_declarative_statement()])
+        s_embed = self.encode_sent(
+            [new_entry.get_declarative_statement()])
         if self.index is None:
             d = s_embed.shape[1]  # dimension
             self.index = faiss.IndexFlatIP(d)
         # build index to add to index
         self.build_index(s_embed)
 
-    def compute_relation(self, premise: str, hypothesis: str):
+    def get_relation(self, premise: str, hypothesis: str):
+        """
+        Given premise and hypothesis, output entailment/neutral/contradiction
+        """
         tokenized_input_seq_pair = self.tokenizer.encode_plus(premise, hypothesis,
                                                               max_length=self.max_length,
                                                               return_token_type_ids=True, truncation=True)
@@ -193,12 +234,19 @@ class MemoryBank:
         """
         # triplet to question
         questions = [MemoryEntry(i[0], i[1]) for i in inputs]
+        context = []
+        # Generate context if necessary
+        if self.feedback is not None:
+            context = self.generate_feedback(questions)
         # Ask your question
-        answers = self.ask_questions([q.get_question() for q in questions])
+        answers = self.ask_questions(
+            [q.get_question() for q in questions], context)
         # Insert answer into memory entry
         for (i, ans) in enumerate(answers):
             questions[i].set_answer(ans)
 
+        # Get all the premeses
+        self.add_to_bank(questions)
 
 
 if __name__ == '__main__':
@@ -211,7 +259,7 @@ if __name__ == '__main__':
 
     e1 = ('owl', 'IsA,Mammal', 'yes')
     e2 = MemoryEntry('owl', 'HasA,vertebrate', 'yes')
-    mem_bank.add_to_bank(*e1)
+    mem_bank.add_to_bank(MemoryEntry(e1))
 
     # Retreive sentences
     s2 = mem_bank.encode_sents([e2.get_declarative_statement()])
