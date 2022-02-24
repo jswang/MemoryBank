@@ -39,10 +39,10 @@ def _yesno_template_lookup(ent, relation, prop, answer):
 
 
 def json_to_qas(file):
-    '''
+    """
     Convert silver facts file containing relations to yes/no QA pairs.
     Returns: List of tuples, tuple[0] = question, tuple[1] = answer
-    '''
+    """
     entities = list(file.keys())
 
     true_qa_pairs = []
@@ -56,9 +56,9 @@ def json_to_qas(file):
 
 
 def json_to_tuples(file):
-    '''
+    """
     Convert silver facts file containing relations to tuples
-    '''
+    """
     entities = list(file.keys())
 
     true_qa_pairs = []
@@ -97,9 +97,9 @@ def _declarative_template_lookup(ent, relation, prop):
 
 
 def translate_text_declarative(file):
-    '''
+    """
     Convert silver facts file containing relations to declarative statements.
-    '''
+    """
     entities = list(file.keys())
 #   print(entities)
     true_statements = []

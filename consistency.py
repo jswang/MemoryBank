@@ -40,6 +40,9 @@ class Implication:
 
 
 def check_consistency(bank: MemoryBank, constraints: List[Implication]):
+    """
+    Check consistency of MemoryBank against constraints
+    """
     # 1. Gather all of the implications related to each entity in the statements
     implications = {}
     for mem_entry in bank.mem_bank:

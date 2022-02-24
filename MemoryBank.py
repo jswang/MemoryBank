@@ -36,8 +36,6 @@ class MemoryBank:
             config["qa_model"])
         self.qa_model.to(self.device)
 
-        # Number of semantically similar constraints to compare against
-        self.n_semantic = config["n_semantic"]
         # Plaintext beliefs: question answer pairs
         self.mem_bank = []
 
@@ -119,12 +117,15 @@ class MemoryBank:
         return [a.split('$answer$ = ')[1] for a in ans]
 
     def add_to_index(self, s_embed: np.array):
+        """
+        Add sentence embeddings to the index
+        """
         self.index.add(s_embed.cpu().detach().numpy())
 
     def retrieve_from_index(self, s_new) -> Tuple[List[MemoryEntry], np.array]:
         """
-        Retrieving top n_semantic sentences from MemoryBank.
-        s_new is a stacked Tensor, first dimension is batch
+        Retrieve sentence embeddings and sentences from the index.
+        s_new is a Tensor, first dimension is batch
         """
         # faiss.normalize_L2(x=s_new)
         s_new /= torch.unsqueeze(torch.norm(s_new, dim=1), 1)
@@ -137,12 +138,12 @@ class MemoryBank:
             retrieved.append(e)
         return retrieved, I
 
-    def flip_or_keep(self, retrieved: List[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
+    def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry) -> MemoryEntry:
         """
-        Given retrieved MemoryEntry
+        Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
         """
-        hypothesis_score = entry.get_confidence()
-        premise_scores = [r.get_confidence() for r in retrieved]  # for marty
+        hypothesis_score = hypothesis.get_confidence()
+        premise_scores = [r.get_confidence() for r in premises]  # for marty
 
         n_entail = np.count_nonzero(
             np.array([np.argmax(p) == 0 for p in premise_scores]))
@@ -152,7 +153,7 @@ class MemoryBank:
         # if we have many entailments, the hypothesis is good and we should flip some premises
         if n_entail > n_contra:
             # flip premises whose QA scores are lower than hypothesis score
-            for idx, r in zip(inds, retrieved):
+            for idx, r in zip(premises_indices, premises):
                 if r.confidence < hypothesis_score:
                     self.mem_bank[idx].flip()
                     # TODO (IMPORTANT): we need to update the embeddings in our FAISS index
@@ -160,15 +161,15 @@ class MemoryBank:
                     # idsel = faiss.IDSelector(k1, faiss.swig_ptr(np.array(ids)))
                     # index.remove_ids(idsel)
         else:
-            entry.flip()
+            hypothesis.flip()
 
-        return entry
+        return hypothesis
 
     def encode_sent(self, sentences):
         return self.sent_model.encode(sentences, convert_to_tensor=True)
 
     def add_to_bank(self, new_entries: List[MemoryEntry]):
-        ''' Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')'''
+        """ Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')"""
 
         self.mem_bank += new_entries
 
