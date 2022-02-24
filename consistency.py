@@ -92,7 +92,7 @@ def test_implication():
 
 def test_consistency():
     # No violations
-    constraints = json.load(open("constraints_v2.json"))
+    constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
     test_constraints = [Implication({"weight": "yes_yes", "direction": "forward", "score": 10, "source": "IsA,dog", "target": "HasA,nose"}),
                         Implication({"weight": "yes_yes", "direction": "back",

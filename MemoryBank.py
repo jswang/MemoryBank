@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from models import standard_config
+from models import baseline_config
 import json
 from MemoryEntry import MemoryEntry
 
@@ -15,7 +15,7 @@ logging.set_verbosity_error()
 
 
 class MemoryBank:
-    def __init__(self, config=standard_config):
+    def __init__(self, config=baseline_config):
         """
         Create a MemoryBank model based on configuration.
         """
@@ -51,7 +51,7 @@ class MemoryBank:
         self.feedback = config["feedback_type"]
         if self.feedback == "topic":
             self.entities_dict = {k: [] for k in json.load(
-                open("silver_facts.json")).keys()}
+                open("data/silver_facts.json")).keys()}
         else:
             self.entities_dict = dict()
         self.n_feedback = 3
@@ -86,7 +86,7 @@ class MemoryBank:
         if self.feedback == "relevant":
             s_embed = self.encode_sent(questions)
             retrieved, I = self.retrieve_from_index(
-                s_embed)  # TODO here
+                s_embed)
             contxt = " ".join(
                 [retrieved[i].get_declarative_statement() for i in I[:self.n_feedback]])
         else:
@@ -119,7 +119,6 @@ class MemoryBank:
         return [a.split('$answer$ = ')[1] for a in ans]
 
     def add_to_index(self, s_embed: np.array):
-        s_embed /= torch.unsqueeze(torch.norm(s_embed, dim=1), 1)
         self.index.add(s_embed.cpu().detach().numpy())
 
     def retrieve_from_index(self, s_new) -> Tuple[List[MemoryEntry], np.array]:
@@ -128,11 +127,10 @@ class MemoryBank:
         s_new is a stacked Tensor, first dimension is batch
         """
         # faiss.normalize_L2(x=s_new)
-        s_new /= np.linalg.norm(s_new)
+        s_new /= torch.unsqueeze(torch.norm(s_new, dim=1), 1)
         # I is the indices
-        _, _, I = self.index.range_search(x=s_new, thresh=self.threshold)
-
-        # TODO: Do we want any additional criteria?
+        _, _, I = self.index.range_search(
+            x=s_new.cpu().detach().numpy(), thresh=self.threshold)
         retrieved = []
         for i in range(I.shape[-1]):
             e = self.mem_bank[I[i]]
@@ -140,6 +138,9 @@ class MemoryBank:
         return retrieved, I
 
     def flip_or_keep(self, retrieved: List[MemoryEntry], inds, entry: MemoryEntry) -> MemoryEntry:
+        """
+        Given retrieved MemoryEntry
+        """
         hypothesis_score = entry.get_confidence()
         premise_scores = [r.get_confidence() for r in retrieved]  # for marty
 
@@ -222,7 +223,6 @@ class MemoryBank:
         if self.enable_flip:
             s_embed = self.encode_sent(
                 [s.get_declarative_statement() for s in statements])
-            # TODO probably something wrong here
             retrieved, inds = self.retrieve_from_index(s_embed)
             statements = [self.flip_or_keep(
                 retrieved, inds, s) for s in statements]

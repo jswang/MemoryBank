@@ -1,5 +1,5 @@
 """
-  TODO: Code to translate from beliefbank graphs to plain natural language texts
+Code to translate from beliefbank graphs to plain natural language texts
 """
 import pickle
 import os
@@ -145,31 +145,15 @@ if __name__ == '__main__':
     Test functionality by running the file.
     """
     # From silver_facts.json, generate silver_facts.txt and silver_tuples.p
-    json_file = json.load(open("silver_facts.json"))
+    json_file = json.load(open("data/silver_facts.json"))
     t_qa = json_to_qas(json_file)
-    write_to_text(t_qa, "silver_facts.txt")
-    pickle.dump(t_qa, open("silver_tuples.p", "wb+"))
-
-    # Visualization of the question + answer pairs
-    print('-'*80)
-    print('testing json_to_qas:\n')
-    # print 5 examples
-    for qa in t_qa[:5]:
-        print(qa)
+    write_to_text(t_qa, "data/silver_facts.txt")
+    pickle.dump(t_qa, open("data/silver_tuples.p", "wb+"))
 
     declarative_statements = translate_text_declarative(json_file)
-    write_to_text(declarative_statements, "silver_facts_declarative.txt")
+    write_to_text(declarative_statements, "data/silver_facts_declarative.txt")
     pickle.dump(declarative_statements, open(
-        "silver_facts_declarative.p", "wb+"))
-
-    # Visualization of the question + answer pairs
-    print('-'*80)
-    print('testing translate_text_declarative:\n')
-    # print 5 examples
-    for yes, no in declarative_statements[:5]:
-        print(yes)
-        print(no)
-    print('-'*80)
+        "data/silver_facts_declarative.p", "wb+"))
 
     # Testing translate_conllu
     print('testing translate_conllu:\n')

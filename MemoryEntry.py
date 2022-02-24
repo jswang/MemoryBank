@@ -10,6 +10,7 @@ class MemoryEntry:
     """
     entity: str
     relation: str
+    # linked, every answer comes with a confidence
     confidence: float = None
     answer: str = None
 
@@ -29,9 +30,11 @@ class MemoryEntry:
         self.answer = ans
 
     def get_answer(self):
+        assert(self.answer is not None)
         return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[1]
 
     def get_qa_pair(self):
+        assert(self.answer is not None)
         return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)
 
     def get_relation(self):
@@ -50,6 +53,8 @@ class MemoryEntry:
         return self.confidence
 
     def flip(self):
+        assert self.answer is not None
+        assert self.confidence is not None
         self.answer = 'yes' if self.answer == 'no' else 'no'
         self.confidence = 1.5 - self.confidence
 

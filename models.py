@@ -2,8 +2,8 @@ import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"Using device {device}")
 
-# Our first configuration for the model
-standard_config = {
+# Model tries to flip sentences, no feedback
+flip_config = {
     # NLI model which outputs relation of premise and hypothesis
     "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
     # Question answering model
@@ -17,7 +17,7 @@ standard_config = {
     # Threshold used to lookup in faiss indexer
     "sentence_similarity_threshold": 0.6,
     # Whether we flip answers to questions
-    "enable_flip": False,
+    "enable_flip": True,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
     # Device: defaults to whatever is available
