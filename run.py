@@ -90,7 +90,7 @@ if __name__ == "__main__":
     plt.xlabel("After Batch")
     plt.title("Raw model benchmarks")
     plt.savefig("raw_benchmarks.png")
-    plt.show(0)
+    plt.show()
 
     # Evaluate baseline on silver facts
     # data = utils.json_to_qas(json.load(open("silver_facts.json")))

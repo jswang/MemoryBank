@@ -199,7 +199,7 @@ class MemoryBank:
             0].tolist()  # batch_size only one
         return predicted_probability
 
-    def forward(self, inputs: Tuple[str, str, str]):
+    def forward(self, inputs: List[Tuple[str, str, str]]):
         """
         Forward pass of the model on a batch of triplets
         Arguments:
