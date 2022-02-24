@@ -118,7 +118,7 @@ class MemoryBank:
             encoded_output, skip_special_tokens=True)
         return [a.split('$answer$ = ')[1] for a in ans]
 
-    def build_index(self, s_embed: np.array):
+    def add_to_index(self, s_embed: np.array):
         s_embed /= torch.unsqueeze(torch.norm(s_embed, dim=1), 1)
         self.index.add(s_embed.cpu().detach().numpy())
 
@@ -133,7 +133,6 @@ class MemoryBank:
         _, _, I = self.index.range_search(x=s_new, thresh=self.threshold)
 
         # TODO: Do we want any additional criteria?
-        # TODO this is definitely broken for s_new being two dimensional, Julie to fix
         retrieved = []
         for i in range(I.shape[-1]):
             e = self.mem_bank[I[i]]
@@ -169,24 +168,13 @@ class MemoryBank:
 
     def add_to_bank(self, new_entries: List[MemoryEntry]):
         ''' Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')'''
-        # TODO: Future -> Add declarative statement
-        # self.mem_bank.append(declare_change(qa_pair))
-        # Appending only the QA pair to make flipping easier
-        if self.enable_flip:
-            # new_entry = self.translate_qa(qa_pair)
-            s_embed = self.encode_sent(
-                [e.get_declarative_statement() for e in new_entries])
-            retrieved, inds = self.retrieve_from_index(s_embed)
-            new_entries = [self.flip_or_keep(
-                retrieved, inds, new_entry) for new_entry in new_entries]
-        self.mem_bank.append(new_entries)
 
-        # embed again in case statement was flipped
+        self.mem_bank += new_entries
+
+        # Embed and add to index
         s_embed = self.encode_sent(
             [e.get_declarative_statement() for e in new_entries])
-
-        # build index to add to index
-        self.build_index(s_embed)
+        self.add_to_index(s_embed)
 
     def get_relation(self, premise: str, hypothesis: str):
         """
@@ -228,7 +216,19 @@ class MemoryBank:
             [q.get_question() for q in questions], context)
         for (i, ans) in enumerate(answers):
             questions[i].set_answer(ans)
+        statements = questions
 
-        # Get all the premeses
-        self.add_to_bank(questions)
-        # TODO return the new answers
+        # Check against existing constraints to flip as necessary
+        if self.enable_flip:
+            s_embed = self.encode_sent(
+                [s.get_declarative_statement() for s in statements])
+            # TODO probably something wrong here
+            retrieved, inds = self.retrieve_from_index(s_embed)
+            statements = [self.flip_or_keep(
+                retrieved, inds, s) for s in statements]
+
+        # Add flipped statements to the bank.
+        self.add_to_bank(statements)
+
+        # Return the answers for this batch
+        return answers

@@ -2,6 +2,7 @@ from binascii import a2b_qp
 import json
 from nis import match
 from MemoryEntry import MemoryEntry
+from MemoryBank import MemoryBank
 from typing import List
 
 
@@ -38,10 +39,10 @@ class Implication:
 # TODO can optimize this quite a bit probably. currently O(2n^2)
 
 
-def check_consistency(bank: List[MemoryEntry], constraints: List[Implication]):
+def check_consistency(bank: MemoryBank, constraints: List[Implication]):
     # 1. Gather all of the implications related to each entity in the statements
     implications = {}
-    for mem_entry in bank:
+    for mem_entry in bank.mem_bank:
         entity, ans, relation = mem_entry.get_entity(
         ), mem_entry.get_answer(), mem_entry.get_relation()
         # Retrieve activated constraints with that id, TODO put this in a pandas dataframe?
@@ -57,7 +58,7 @@ def check_consistency(bank: List[MemoryEntry], constraints: List[Implication]):
     violations_count = 0
     valid_count = 0
     # 2. for every statement, see if it violates any of the implications that have been activated, aka, p->q and q is false
-    for mem_entry in bank:
+    for mem_entry in bank.mem_bank:
         # For every activated implication, see if this statement contradicts the implications conclusion
         if mem_entry.get_entity() in implications:
             for constraint in implications[mem_entry.get_entity()]:

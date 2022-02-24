@@ -1,6 +1,6 @@
 from MemoryBank import MemoryBank
 from tqdm import tqdm
-from consistency import check_consistency
+from consistency import check_consistency, Implication
 import utils
 import json
 import torch
@@ -75,10 +75,13 @@ def evaluate_model(mem_bank, data, constraints=None, batch_size=400):
 if __name__ == "__main__":
     mem_bank = MemoryBank(baseline_config)
     data = utils.json_to_tuples(json.load(open("silver_facts.json")))
-    evaluate_model(mem_bank, data, "baseline_2.txt")
+    constraints = json.load(open("constraints_v2.json"))
+    constraints = [Implication(c) for c in constraints["links"]]
+    f1_scores, accuracies, consistencies = evaluate_model(
+        mem_bank, data, constraints)
 
-    f1_scores, accuracies, consistencies = evaluate_baseline(
-        mem_bank, test_sentences, "baseline_output.txt")
+    # f1_scores, accuracies, consistencies = evaluate_baseline(
+    #     mem_bank, test_sentences, "baseline_output.txt")
     b = [i for i in range(len(f1_scores))]
     plt.plot(b, f1_scores, label="F1 scores")
     plt.plot(b, accuracies, label="Accuracy")
