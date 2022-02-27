@@ -69,7 +69,12 @@ class MemoryBank:
         """
         result_topics = []
         for q in questions:
-            topics = random.choices(self.entities_dict[q.get_entity()], k=self.n_feedback)
+            pop = self.entities_dict[q.get_entity()]
+            if len(pop) > self.n_feedback:
+                topics = random.sample(pop, k=self.n_feedback)
+                # topics = list(set(topics))
+            else:
+                topics = pop
             result_topics.append(" ".join([t.get_declarative_statement() for t in topics]))
             self.entities_dict[q.get_entity()].append(q)
         return result_topics
@@ -88,14 +93,17 @@ class MemoryBank:
         else:
             # List of strings, each string corresponding to self.n_feedback relevant beliefs
             context = self.find_same_topic(questions)
+        # for i in range(len(context)):
+        #     print("CONTEXT:", context[i])
+        #     print("QUESTION:", questions[i])
         # print(context, "< ======= CONTEXT")
         # print(questions, "< ======== QUESTIONS")
         return context
 
-    def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[Tuple[str, float]]:
+    def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[str]:
         """
         Ask the Macaw model a batch of yes or no questions.
-        Returns "yes" or "no" and a confidence score
+        Returns "yes" or "no"
         """
         # Insert feedback if necesasry
         if len(context) == len(questions):
@@ -107,21 +115,14 @@ class MemoryBank:
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
         # Tokenize questions
         input_ids = self.qa_tokenizer(
-            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length).input_ids
+            input_string, padding=True, truncation=True, return_tensors="pt")
         input_ids.to(self.device)
-        # Ask the questions, include a label to gather confidence
-        labels = self.qa_tokenizer(
-            "$answer$ = yes", return_tensors="pt", max_length=self.max_length).input_ids
-        labels = torch.tile(labels, (len(questions), 1))
-        labels.to(self.device)
-        # Calculate probability of yes answer
-        res = self.qa_model(input_ids, labels=labels)
-        res_softmax = torch.softmax(res.logits, dim=2)
-        raw_probs = torch.squeeze(torch.gather(
-            res_softmax, 2, torch.unsqueeze(labels, 2)))
-        output_prob = torch.prod(raw_probs, 1)
-
-        return [("yes", a) if a >= 0.5 else ("no", a) for a in output_prob]
+        # Ask the questions
+        encoded_output = self.qa_model.generate(
+            input_ids["input_ids"], max_length=self.max_length)
+        ans = self.qa_tokenizer.batch_decode(
+            encoded_output, skip_special_tokens=True)
+        return [a.split('$answer$ = ')[1] for a in ans]
 
     def add_to_index(self, s_embed: np.array):
         """
@@ -159,7 +160,9 @@ class MemoryBank:
         """
         Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
         """
-        probs = np.array([self.get_relation(p.get_declarative_statement(), hypothesis.get_declarative_statement())] for p in premises)
+        probs = np.array(
+            [self.get_relation(p.get_declarative_statement(), hypothesis.get_declarative_statement())] for p in
+            premises)
         n_entail = np.count_nonzero(probs.argmax(axis=1) == 0)
         n_contra = np.count_nonzero(probs.argmax(axis=1) == 2)
 
@@ -179,7 +182,7 @@ class MemoryBank:
                 for idx, r in zip(premises_indices, premises):
                     if r.confidence < hypothesis_score:
                         self.mem_bank[idx].flip()
-            
+
             # if our QA model is more confident about premises,
             # the hypothesis isn't good and we should flip it
             else:
@@ -187,7 +190,7 @@ class MemoryBank:
 
         return hypothesis
 
-    def encode_sent(self, sentences : List[str]):
+    def encode_sent(self, sentences: List[str]):
         return self.sent_model.encode(sentences, convert_to_tensor=True)
 
     def add_to_bank(self, new_entries: List[MemoryEntry]):
@@ -238,9 +241,8 @@ class MemoryBank:
         # Ask your question
         answers = self.ask_questions(
             [q.get_question() for q in questions], context)
-        for (i, (ans, conf)) in enumerate(answers):
+        for (i, ans) in enumerate(answers):
             questions[i].set_answer(ans)
-            questions[i].set_confidence(conf.item())
         statements = questions
 
         # Check against existing constraints to flip as necessary
