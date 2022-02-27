@@ -62,34 +62,29 @@ class MemoryBank:
         self.index = faiss.IndexFlatIP(
             self.sent_model.get_sentence_embedding_dimension())
 
-    def find_same_topic(self, questions: List[str]) -> List[str]:
+    def find_same_topic(self, questions: List[MemoryEntry]) -> List[str]:
         """
         Given a list of questions, return all of the related topic sentences in a single string
         """
         result_topics = []
         for q in questions:
-            for e in self.entities_dict:
-                if e in q:
-                    topics = random.choices(
-                        self.entities_dict[e], k=self.n_feedback)
-                    result_topics += [" ".join(topics)]
-                    self.entities_dict[e].append(q)
+            topics = random.choices(self.entities_dict[q.get_entity()], k=self.n_feedback)
+            result_topics.append(" ".join(topics))
+            self.entities_dict[q.get_entity()].append(q.get_pos_statement())
         return result_topics
 
     def generate_feedback(self, questions: List[MemoryEntry]) -> List[str]:
         """
         Given a list of questions, retrieve semantically similar sentences for context
         """
-        context = []
         if self.feedback == "relevant":
-            s_embed = self.encode_sent(q.get_pos_statement() for q in questions)
+            s_embed = self.encode_sent([q.get_pos_statement() for q in questions])
             retrieved, I = self.retrieve_from_index(
                 s_embed)
-            contxt = " ".join(
+            context = " ".join(
                 [retrieved[i].get_declarative_statement() for i in I[:self.n_feedback]])
         else:
-            contxt = self.find_same_topic(questions)
-            context += contxt
+            context = self.find_same_topic(questions)
         return context
 
     def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[str]:
