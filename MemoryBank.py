@@ -76,20 +76,20 @@ class MemoryBank:
                     self.entities_dict[e].append(q)
         return result_topics
 
-    def generate_feedback(self, questions: List[str]) -> List[str]:
+    def generate_feedback(self, questions: List[MemoryEntry]) -> List[str]:
         """
         Given a list of questions, retrieve semantically similar sentences for context
         """
         context = []
         if self.feedback == "relevant":
-            s_embed = self.encode_sent(questions)
+            s_embed = self.encode_sent(q.get_pos_statement() for q in questions)
             retrieved, I = self.retrieve_from_index(
                 s_embed)
             contxt = " ".join(
                 [retrieved[i].get_declarative_statement() for i in I[:self.n_feedback]])
         else:
             contxt = self.find_same_topic(questions)
-            context += [contxt]
+            context += contxt
         return context
 
     def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[str]:
@@ -165,7 +165,7 @@ class MemoryBank:
 
         return hypothesis
 
-    def encode_sent(self, sentences):
+    def encode_sent(self, sentences : List[str]):
         return self.sent_model.encode(sentences, convert_to_tensor=True)
 
     def add_to_bank(self, new_entries: List[MemoryEntry]):
@@ -175,7 +175,7 @@ class MemoryBank:
 
         # Embed and add to index
         s_embed = self.encode_sent(
-            [e.get_declarative_statement() for e in new_entries])
+            [e.get_pos_statement() for e in new_entries])
         self.add_to_index(s_embed)
 
     def get_relation(self, premise: str, hypothesis: str):
@@ -223,7 +223,7 @@ class MemoryBank:
         # Check against existing constraints to flip as necessary
         if self.enable_flip:
             s_embed = self.encode_sent(
-                [s.get_declarative_statement() for s in statements])
+                [s.get_pos_statement() for s in statements])
             retrieved, inds = self.retrieve_from_index(s_embed)
             statements = [self.flip_or_keep(
                 retrieved, inds, s) for s in statements]
