@@ -59,7 +59,6 @@ class MemoryBank:
         # Model that goes from sentence to sentence representation
         self.sent_model = SentenceTransformer(config["sentence_model"])
         self.sent_model.to(self.device)
-        self.qa_dec_dict = None
         # Embedded sentence index, allows us to look up quickly
         self.index = faiss.IndexFlatIP(
             self.sent_model.get_sentence_embedding_dimension())
@@ -83,12 +82,14 @@ class MemoryBank:
             s_embed = self.encode_sent([q.get_pos_statement() for q in questions])
             context = []
             for i in range(s_embed.shape[0]):
-                retrieved, I = self.retrieve_from_index(s_embed[i, :])
+                retrieved, I = self.retrieve_from_index(s_embed[i, :], feedback_mode=True)
                 context.append(" ".join(
                     [r.get_declarative_statement() for r in retrieved[:self.n_feedback]]))
         else:
             # List of strings, each string corresponding to self.n_feedback relevant beliefs
             context = self.find_same_topic(questions)
+        # print(context, "< ======= CONTEXT")
+        # print(questions, "< ======== QUESTIONS")
         return context
 
     def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[str]:
@@ -119,17 +120,23 @@ class MemoryBank:
         """
         Add sentence embeddings to the index
         """
-        self.index.add(s_embed.cpu().detach().numpy().astype("float32"))
+        s_embed = s_embed.cpu().detach().numpy().astype("float32")
+        faiss.normalize_L2(x=s_embed)
+        self.index.add(s_embed)
 
-    def retrieve_from_index(self, s_new) -> Tuple[List[MemoryEntry], np.array]:
+    def retrieve_from_index(self, s_new, feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
         """
         Retrieve sentence embeddings and sentences from the index.
         s_new is a Tensor, first dimension is batch
         """
-        # faiss.normalize_L2(x=s_new)
-        s_new /= torch.unsqueeze(torch.norm(s_new, dim=1), 1)
+        s_new = s_new.unsqueeze(0).cpu().detach().numpy().astype("float32")
+        faiss.normalize_L2(x=s_new)
+        # s_new /= torch.unsqueeze(torch.norm(s_new, dim=1), 1)
         # I is the indices
-        lims, D, I = self.index.range_search(x=s_new.cpu().detach().numpy(), thresh=self.threshold)
+        if feedback_mode:
+            lims, D, I = self.index.range_search(x=s_new, thresh=0)
+        else:
+            lims, D, I = self.index.range_search(x=s_new, thresh=self.threshold)
         D = np.argsort(D)
         retrieved = []
         indices = []

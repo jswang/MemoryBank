@@ -78,22 +78,22 @@ def _declarative_template_lookup(ent, relation, prop):
     if relation == "HasPart" or relation == "HasA":
         if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
             prop = _modify_entity(prop)
-        return "{entity} has {prop}".format(entity=ent, prop=prop), "{entity} does not have {prop}".format(entity=ent, prop=prop)
+        return "{entity} has {prop}.".format(entity=ent, prop=prop), "{entity} does not have {prop}".format(entity=ent, prop=prop)
 
     elif relation == "MadeOf":
-        return "{entity} is made of {prop}".format(entity=ent, prop=prop), "{entity} is not made of {prop}".format(entity=ent, prop=prop)
+        return "{entity} is made of {prop}.".format(entity=ent, prop=prop), "{entity} is not made of {prop}".format(entity=ent, prop=prop)
 
     elif relation == "CapableOf":
         if prop == "eating":
             prop = "eat"
-        return "{entity} can {prop}".format(entity=ent, prop=prop), "{entity} cannot {prop}".format(entity=ent, prop=prop)
+        return "{entity} can {prop}.".format(entity=ent, prop=prop), "{entity} cannot {prop}".format(entity=ent, prop=prop)
 
     elif relation == "IsA":
         prop = _modify_entity(prop)
-        return "{entity} is {prop}".format(entity=ent, prop=prop), "{entity} is not {prop}".format(entity=ent, prop=prop)
+        return "{entity} is {prop}.".format(entity=ent, prop=prop), "{entity} is not {prop}".format(entity=ent, prop=prop)
 
     else:
-        return "{entity} is {prop}".format(entity=ent, prop=prop), "{entity} is not {prop}".format(entity=ent, prop=prop)
+        return "{entity} is {prop}.".format(entity=ent, prop=prop), "{entity} is not {prop}".format(entity=ent, prop=prop)
 
 
 def translate_text_declarative(file):
