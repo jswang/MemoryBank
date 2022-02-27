@@ -69,13 +69,10 @@ class MemoryBank:
         """
         result_topics = []
         for q in questions:
-            pop = self.entities_dict[q.get_entity()]
-            if len(pop) > self.n_feedback:
-                topics = random.sample(pop, k=self.n_feedback)
-                # topics = list(set(topics))
-            else:
-                topics = pop
-            result_topics.append(" ".join([t.get_declarative_statement() for t in topics]))
+            topics = random.choices(
+                self.entities_dict[q.get_entity()], k=self.n_feedback)
+            result_topics.append(
+                " ".join([t.get_declarative_statement() for t in topics]))
             self.entities_dict[q.get_entity()].append(q)
         return result_topics
 
@@ -84,10 +81,12 @@ class MemoryBank:
         Given a list of questions, retrieve semantically similar sentences for context
         """
         if self.feedback == "relevant":
-            s_embed = self.encode_sent([q.get_pos_statement() for q in questions])
+            s_embed = self.encode_sent(
+                [q.get_pos_statement() for q in questions])
             context = []
             for i in range(s_embed.shape[0]):
-                retrieved, I = self.retrieve_from_index(s_embed[i, :], feedback_mode=True)
+                retrieved, I = self.retrieve_from_index(
+                    s_embed[i, :], feedback_mode=True)
                 context.append(" ".join(
                     [r.get_declarative_statement() for r in retrieved[:self.n_feedback]]))
         else:
@@ -129,22 +128,19 @@ class MemoryBank:
         Add sentence embeddings to the index
         """
         s_embed = s_embed.cpu().detach().numpy().astype("float32")
-        faiss.normalize_L2(x=s_embed)
+        s_embed /= np.linalg.norm(s_embed, 1)
         self.index.add(s_embed)
 
-    def retrieve_from_index(self, s_new, feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
+    def retrieve_from_index(self, sentences: List[str], feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
         """
         Retrieve sentence embeddings and sentences from the index.
         s_new is a Tensor, first dimension is batch
         """
-        s_new = s_new.unsqueeze(0).cpu().detach().numpy().astype("float32")
-        faiss.normalize_L2(x=s_new)
-        # s_new /= torch.unsqueeze(torch.norm(s_new, dim=1), 1)
-        # I is the indices
-        if feedback_mode:
-            lims, D, I = self.index.range_search(x=s_new, thresh=0)
-        else:
-            lims, D, I = self.index.range_search(x=s_new, thresh=self.threshold)
+        s_embed = self.encode_sent(sentences)
+        s_embed = s_embed.cpu().detach().numpy().astype("float32")
+        s_embed /= np.linalg.norm(s_embed, 1)
+        lims, D, I = self.index.range_search(
+            x=s_embed, thresh=self.threshold)
         D = np.argsort(D)
         retrieved = []
         indices = []
@@ -160,9 +156,10 @@ class MemoryBank:
         """
         Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
         """
-        probs = np.array(
-            [self.get_relation(p.get_declarative_statement(), hypothesis.get_declarative_statement())] for p in
-            premises)
+
+        probs = np.array([self.get_relation(p.get_declarative_statement(
+        ), hypothesis.get_declarative_statement())] for p in premises)
+
         n_entail = np.count_nonzero(probs.argmax(axis=1) == 0)
         n_contra = np.count_nonzero(probs.argmax(axis=1) == 2)
 
@@ -172,7 +169,8 @@ class MemoryBank:
             hypothesis_score = hypothesis.get_confidence()
             premise_scores = np.array([r.get_confidence() for r in premises])
 
-            hypothesis_votes = np.count_nonzero(hypothesis_score > premise_scores)
+            hypothesis_votes = np.count_nonzero(
+                hypothesis_score > premise_scores)
             premise_votes = np.count_nonzero(hypothesis_score < premise_scores)
 
             # if our QA model is more confident about the hypothesis,
@@ -191,7 +189,7 @@ class MemoryBank:
         return hypothesis
 
     def encode_sent(self, sentences: List[str]):
-        return self.sent_model.encode(sentences, convert_to_tensor=True)
+        return self.sent_model.encode(sentences, device=self.device, convert_to_tensor=True)
 
     def add_to_bank(self, new_entries: List[MemoryEntry]):
         """ Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')"""
@@ -247,9 +245,7 @@ class MemoryBank:
 
         # Check against existing constraints to flip as necessary
         if self.enable_flip:
-            s_embed = self.encode_sent(
-                [s.get_pos_statement() for s in statements])
-            retrieved, inds = self.retrieve_from_index(s_embed)
+            retrieved, inds = self.retrieve_from_index(statements)
             statements = [self.flip_or_keep(
                 retrieved, inds, s) for s in statements]
 
@@ -258,3 +254,14 @@ class MemoryBank:
 
         # Return the answers for this batch
         return answers
+
+
+def test_faiss():
+    mb = MemoryBank(baseline_config)
+    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes")])
+    mb.add_to_bank([MemoryEntry("segull", "IsA,bird", 0.9, "yes")])
+    retrieved, I = mb.retrieve_from_index(["A poodle is a dog."])
+    print(f"{retrieved}")
+
+
+# test_faiss()
