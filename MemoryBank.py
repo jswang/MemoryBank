@@ -6,6 +6,8 @@ import torch
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
+
+import models
 from models import baseline_config
 import json
 from MemoryEntry import MemoryEntry
@@ -69,8 +71,8 @@ class MemoryBank:
         result_topics = []
         for q in questions:
             topics = random.choices(self.entities_dict[q.get_entity()], k=self.n_feedback)
-            result_topics.append(" ".join(topics))
-            self.entities_dict[q.get_entity()].append(q.get_pos_statement())
+            result_topics.append(" ".join([t.get_declarative_statement() for t in topics]))
+            self.entities_dict[q.get_entity()].append(q)
         return result_topics
 
     def generate_feedback(self, questions: List[MemoryEntry]) -> List[str]:
@@ -79,11 +81,13 @@ class MemoryBank:
         """
         if self.feedback == "relevant":
             s_embed = self.encode_sent([q.get_pos_statement() for q in questions])
-            retrieved, I = self.retrieve_from_index(
-                s_embed)
-            context = " ".join(
-                [retrieved[i].get_declarative_statement() for i in I[:self.n_feedback]])
+            context = []
+            for i in range(s_embed.shape[0]):
+                retrieved, I = self.retrieve_from_index(s_embed[i, :])
+                context.append(" ".join(
+                    [r.get_declarative_statement() for r in retrieved[:self.n_feedback]]))
         else:
+            # List of strings, each string corresponding to self.n_feedback relevant beliefs
             context = self.find_same_topic(questions)
         return context
 
@@ -115,7 +119,7 @@ class MemoryBank:
         """
         Add sentence embeddings to the index
         """
-        self.index.add(s_embed.cpu().detach().numpy())
+        self.index.add(s_embed.cpu().detach().numpy().astype("float32"))
 
     def retrieve_from_index(self, s_new) -> Tuple[List[MemoryEntry], np.array]:
         """
@@ -125,13 +129,17 @@ class MemoryBank:
         # faiss.normalize_L2(x=s_new)
         s_new /= torch.unsqueeze(torch.norm(s_new, dim=1), 1)
         # I is the indices
-        _, _, I = self.index.range_search(
-            x=s_new.cpu().detach().numpy(), thresh=self.threshold)
+        lims, D, I = self.index.range_search(x=s_new.cpu().detach().numpy(), thresh=self.threshold)
+        D = np.argsort(D)
         retrieved = []
-        for i in range(I.shape[-1]):
-            e = self.mem_bank[I[i]]
+        indices = []
+        for i in range(D.shape[-1]):
+            e = self.mem_bank[I[D[i]]]
             retrieved.append(e)
-        return retrieved, I
+            indices.append(I[D[i]])
+        retrieved.reverse()
+        indices.reverse()
+        return retrieved, indices
 
     def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry) -> MemoryEntry:
         """
