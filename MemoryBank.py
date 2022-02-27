@@ -145,26 +145,31 @@ class MemoryBank:
         """
         Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
         """
-        hypothesis_score = hypothesis.get_confidence()
-        premise_scores = [r.get_confidence() for r in premises]  # for marty
+        probs = np.array([self.get_relation(p.get_declarative_statement(), hypothesis.get_declarative_statement())] for p in premises)
+        n_entail = np.count_nonzero(probs.argmax(axis=1) == 0)
+        n_contra = np.count_nonzero(probs.argmax(axis=1) == 2)
 
-        n_entail = np.count_nonzero(
-            np.array([np.argmax(p) == 0 for p in premise_scores]))
-        n_contra = np.count_nonzero(
-            np.array([np.argmax(p) == 2 for p in premise_scores]))
+        # if we have more contradictions than we do entailments, we should flip
+        # either the hypothesis or one or more premises
+        if n_entail < n_contra:
+            hypothesis_score = hypothesis.get_confidence()
+            premise_scores = np.array([r.get_confidence() for r in premises])
 
-        # if we have many entailments, the hypothesis is good and we should flip some premises
-        if n_entail > n_contra:
-            # flip premises whose QA scores are lower than hypothesis score
-            for idx, r in zip(premises_indices, premises):
-                if r.confidence < hypothesis_score:
-                    self.mem_bank[idx].flip()
-                    # TODO (IMPORTANT): we need to update the embeddings in our FAISS index
+            hypothesis_votes = np.count_nonzero(hypothesis_score > premise_scores)
+            premise_votes = np.count_nonzero(hypothesis_score < premise_scores)
 
-                    # idsel = faiss.IDSelector(k1, faiss.swig_ptr(np.array(ids)))
-                    # index.remove_ids(idsel)
-        else:
-            hypothesis.flip()
+            # if our QA model is more confident about the hypothesis,
+            # the hypothesis is good and we should flip some premises
+            if hypothesis_votes > premise_votes:
+                # flip premises whose QA scores are lower than hypothesis score
+                for idx, r in zip(premises_indices, premises):
+                    if r.confidence < hypothesis_score:
+                        self.mem_bank[idx].flip()
+            
+            # if our QA model is more confident about premises,
+            # the hypothesis isn't good and we should flip it
+            else:
+                hypothesis.flip()
 
         return hypothesis
 
