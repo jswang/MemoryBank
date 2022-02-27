@@ -91,10 +91,10 @@ class MemoryBank:
             context = self.find_same_topic(questions)
         return context
 
-    def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[str]:
+    def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[Tuple[str, float]]:
         """
         Ask the Macaw model a batch of yes or no questions.
-        Returns "yes" or "no"
+        Returns "yes" or "no" and a confidence score
         """
         # Insert feedback if necesasry
         if len(context) == len(questions):
@@ -106,14 +106,21 @@ class MemoryBank:
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
         # Tokenize questions
         input_ids = self.qa_tokenizer(
-            input_string, padding=True, truncation=True, return_tensors="pt")
+            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length).input_ids
         input_ids.to(self.device)
-        # Ask the questions
-        encoded_output = self.qa_model.generate(
-            input_ids["input_ids"], max_length=self.max_length)
-        ans = self.qa_tokenizer.batch_decode(
-            encoded_output, skip_special_tokens=True)
-        return [a.split('$answer$ = ')[1] for a in ans]
+        # Ask the questions, include a label to gather confidence
+        labels = self.qa_tokenizer(
+            "$answer$ = yes", return_tensors="pt", max_length=self.max_length).input_ids
+        labels = torch.tile(labels, (len(questions), 1))
+        labels.to(self.device)
+        # Calculate probability of yes answer
+        res = self.qa_model(input_ids, labels=labels)
+        res_softmax = torch.softmax(res.logits, dim=2)
+        raw_probs = torch.squeeze(torch.gather(
+            res_softmax, 2, torch.unsqueeze(labels, 2)))
+        output_prob = torch.prod(raw_probs, 1)
+
+        return [("yes", a) if a >= 0.5 else ("no", a) for a in output_prob]
 
     def add_to_index(self, s_embed: np.array):
         """
@@ -224,8 +231,9 @@ class MemoryBank:
         # Ask your question
         answers = self.ask_questions(
             [q.get_question() for q in questions], context)
-        for (i, ans) in enumerate(answers):
+        for (i, (ans, conf)) in enumerate(answers):
             questions[i].set_answer(ans)
+            questions[i].set_confidence(conf.item())
         statements = questions
 
         # Check against existing constraints to flip as necessary
