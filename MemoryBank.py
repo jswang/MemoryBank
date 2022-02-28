@@ -179,8 +179,8 @@ class MemoryBank:
         probs = np.array([self.get_relation(p.get_declarative_statement(
         ), hypothesis.get_declarative_statement()) for p in premises])
 
-        n_entail = np.count_nonzero(probs.argmax(axis=1) == 0)
-        n_contra = np.count_nonzero(probs.argmax(axis=1) == 2)
+        n_entail = np.sum(probs.argmax(axis=1) == 0)
+        n_contra = np.sum(probs.argmax(axis=1) == 2)
 
         # if we have more contradictions than we do entailments, we should flip
         # either the hypothesis or one or more premises
@@ -244,7 +244,6 @@ class MemoryBank:
                                  attention_mask=attention_mask,
                                  token_type_ids=token_type_ids,
                                  labels=None)
-        # print(outputs)
         predicted_probability = torch.softmax(outputs[0], dim=1)[
             0].tolist()  # batch_size only one
         return predicted_probability

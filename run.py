@@ -45,6 +45,20 @@ def choose_threshold():
             f"f: threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
 
 
+def test_flip_or_keep():
+    """
+    Function to test flipping or keeping
+    """
+    # Should flip this hypothesis, strong contradiction from both premises
+    mb = MemoryBank(flip_config)
+    premises = [MemoryEntry("poodle", "IsA,dog", 0.9, "yes"),
+                MemoryEntry("poodle", "HasA,teeth", 0.9, "yes")]
+    mb.add_to_bank(premises)
+    ans = mb.flip_or_keep(premises, [0, 1], MemoryEntry(
+        "poodle", "HasA,one mouth", 0.5, "no"))
+    assert ans.answer == 'yes'
+
+
 def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
     """
     Given a model and data containing questions with ground truth, run through
