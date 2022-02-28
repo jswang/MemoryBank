@@ -81,9 +81,8 @@ class MemoryBank:
         Given a list of questions, retrieve semantically similar sentences for context
         """
         if self.feedback == "relevant":
-            s_embed = self.encode_sent(questions)
-            R, I = self.retrieve_from_index(s_embed, feedback_mode=True)
-            contexts = [e.get_declarative_statement() for e in [r for r in R]]
+            R, I = self.retrieve_from_index(questions)
+            contexts = [e.get_declarative_statement() for r in R for e in r]
         else:
             # List of strings, each string corresponding to self.n_feedback relevant beliefs
             contexts = self.find_same_topic(questions)
@@ -107,6 +106,7 @@ class MemoryBank:
         else:
             input_string = [
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
+        # print(input_string)
         # Tokenize questions
         input_ids = self.qa_tokenizer(
             input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length).input_ids.to(self.device)
@@ -131,7 +131,7 @@ class MemoryBank:
         s_embed /= np.expand_dims(np.linalg.norm(s_embed, axis=-1), 1)
         self.index.add(s_embed)
 
-    def retrieve_from_index(self, sentences: List[MemoryEntry], feedback_mode=False) -> Tuple[List[List[MemoryEntry]], List[np.array]]:
+    def retrieve_from_index(self, sentences: List[MemoryEntry]) -> Tuple[List[List[MemoryEntry]], List[np.array]]:
         """
         Retrieve sentence embeddings and sentences from the index.
         s_new is a Tensor, first dimension is batch
