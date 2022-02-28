@@ -128,7 +128,7 @@ class MemoryBank:
         Add sentence embeddings to the index
         """
         s_embed = s_embed.cpu().detach().numpy().astype("float32")
-        s_embed /= np.expand_dims(np.linalg.norm(s_embed, 2, -1), 1)
+        s_embed /= np.expand_dims(np.linalg.norm(s_embed, axis=-1), 1)
         self.index.add(s_embed)
 
     def retrieve_from_index(self, sentences: List[str], feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
@@ -138,7 +138,7 @@ class MemoryBank:
         """
         s_embed = self.encode_sent(sentences)
         s_embed = s_embed.cpu().detach().numpy().astype("float32")
-        s_embed /= np.expand_dims(np.linalg.norm(s_embed, 2, -1), 1)
+        s_embed /= np.expand_dims(np.linalg.norm(s_embed, axis=-1), 1)
         lims, D, I = self.index.range_search(
             x=s_embed, thresh=self.threshold)
         D = np.argsort(D)
