@@ -81,23 +81,18 @@ class MemoryBank:
         Given a list of questions, retrieve semantically similar sentences for context
         """
         if self.feedback == "relevant":
-            s_embed = self.encode_sent(
-                [q.get_pos_statement() for q in questions])
-            context = []
-            for i in range(s_embed.shape[0]):
-                retrieved, I = self.retrieve_from_index(
-                    s_embed[i, :], feedback_mode=True)
-                context.append(" ".join(
-                    [r.get_declarative_statement() for r in retrieved[:self.n_feedback]]))
+            s_embed = self.encode_sent(questions)
+            R, I = self.retrieve_from_index(s_embed, feedback_mode=True)
+            contexts = [e.get_declarative_statement() for e in [r for r in R]]
         else:
             # List of strings, each string corresponding to self.n_feedback relevant beliefs
-            context = self.find_same_topic(questions)
+            contexts = self.find_same_topic(questions)
         # for i in range(len(context)):
         #     print("CONTEXT:", context[i])
         #     print("QUESTION:", questions[i])
         # print(context, "< ======= CONTEXT")
         # print(questions, "< ======== QUESTIONS")
-        return context
+        return contexts
 
     def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[Tuple[str, float]]:
         """
@@ -114,13 +109,11 @@ class MemoryBank:
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
         # Tokenize questions
         input_ids = self.qa_tokenizer(
-            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length).input_ids
-        input_ids.to(self.device)
+            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length).input_ids.to(self.device)
         # Ask the questions, include a label to gather confidence
         labels = self.qa_tokenizer(
-            "$answer$ = yes", return_tensors="pt", max_length=self.max_length).input_ids
+            "$answer$ = yes", return_tensors="pt", max_length=self.max_length).input_ids.to(self.device)
         labels = torch.tile(labels, (len(questions), 1))
-        labels.to(self.device)
         # Calculate probability of yes answer
         res = self.qa_model(input_ids, labels=labels)
         res_softmax = torch.softmax(res.logits, dim=2)
@@ -138,7 +131,7 @@ class MemoryBank:
         s_embed /= np.expand_dims(np.linalg.norm(s_embed, axis=-1), 1)
         self.index.add(s_embed)
 
-    def retrieve_from_index(self, sentences: List[MemoryEntry], feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
+    def retrieve_from_index(self, sentences: List[MemoryEntry], feedback_mode=False) -> Tuple[List[List[MemoryEntry]], List[np.array]]:
         """
         Retrieve sentence embeddings and sentences from the index.
         s_new is a Tensor, first dimension is batch
@@ -159,11 +152,15 @@ class MemoryBank:
             top_indices = np.argsort(score_list)[::-1]
             # Take top 30 most similar items
             top_indices = top_indices[:30]
+            temp_indices = []
+            temp_retrieved = []
             for meta_index in top_indices:
                 bank_idx = idx_list[meta_index]
                 e = self.mem_bank[bank_idx]
-                retrieved.append(e)
-                indices.append(bank_idx)
+                temp_retrieved.append(e)
+                temp_indices.append(bank_idx)
+            retrieved.append(temp_retrieved)
+            indices.append(temp_indices)
 
         return retrieved, indices
 
@@ -269,9 +266,9 @@ class MemoryBank:
 
         # Check against existing constraints to flip as necessary
         if self.enable_flip:
-            retrieved, inds = self.retrieve_from_index(statements)
+            R, I = self.retrieve_from_index(statements)
             statements = [self.flip_or_keep(
-                retrieved, inds, s) for s in statements]
+                r, i, s) for r, i, s in zip(R, I, statements)]
 
         # Add flipped statements to the bank.
         self.add_to_bank(statements)
@@ -315,4 +312,4 @@ def choose_threshold():
     mb.add_to_bank([MemoryEntry("seagull", "IsA,bird", 0.9, "yes")])
 
 
-choose_threshold()
+# choose_threshold()

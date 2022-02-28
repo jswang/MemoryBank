@@ -58,8 +58,8 @@ if __name__ == "__main__":
     plt.plot(b, consistencies, label="Consistency")
     plt.legend()
     plt.xlabel("After Batch")
-    plt.title("Raw model benchmarks")
-    plt.savefig("figures/raw_benchmarks.png")
+    plt.title("Flip model benchmarks")
+    plt.savefig("figures/flip_benchmarks.png")
 
     # Evaluate flipping
     mem_bank = MemoryBank(baseline_config)
@@ -71,5 +71,5 @@ if __name__ == "__main__":
     plt.plot(b, consistencies, label="Consistency")
     plt.legend()
     plt.xlabel("After Batch")
-    plt.title("Flipping model benchmarks")
-    plt.savefig("figures/flip_benchmarks.png")
+    plt.title("Raw model benchmarks")
+    plt.savefig("figures/raw_benchmarks.png")
