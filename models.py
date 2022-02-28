@@ -22,9 +22,8 @@ flip_config = {
     "feedback_type": None,
     # Device: defaults to whatever is available
     "device": device,
-    "flip_alpha": 1,
-    "flip_beta": 1,
-    "flip_gamma": 1
+    # When flipping, the confidence to give to a flipped answer
+    "confidence_fn": lambda: 0.5,
 }
 
 # Baseline, just question answering
@@ -47,9 +46,8 @@ baseline_config = {
     "feedback_type": None,
     # Device: defaults to whatever is available
     "device": device,
-    "flip_alpha": 1,
-    "flip_beta": 1,
-    "flip_gamma": 1
+    # When flipping, the confidence to give to a flipped answer
+    "confidence_fn": lambda: 0.5,
 }
 
 # Feedback
@@ -72,7 +70,6 @@ feedback_config = {
     "feedback_type": "relevant",
     # Device: defaults to whatever is available
     "device": device,
-    "flip_alpha": 1,
-    "flip_beta": 1,
-    "flip_gamma": 1
+    # When flipping, the confidence to give to a flipped answer
+    "confidence_fn": lambda: 0.5,
 }

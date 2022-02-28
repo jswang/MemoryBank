@@ -52,11 +52,16 @@ class MemoryEntry:
     def get_confidence(self):
         return self.confidence
 
-    def flip(self):
+    def flip(self, confidence_fn):
+        """
+        confidence_fn is a lambda function
+        that decides what the confidence score
+        should be for a flipped answer
+        """
         assert self.answer is not None
         assert self.confidence is not None
         self.answer = 'yes' if self.answer == 'no' else 'no'
-        self.confidence = 1.5 - self.confidence
+        self.confidence = confidence_fn()
 
 
 if __name__ == '__main__':

@@ -21,9 +21,7 @@ class MemoryBank:
         """
         Create a MemoryBank model based on configuration.
         """
-        self.alpha = config['flip_alpha']
-        self.beta = config['flip_beta']
-        self.gamma = config['flip_gamma']
+        self.confidence_fn = config["confidence_fn"]
         self.device = config["device"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
@@ -202,12 +200,12 @@ class MemoryBank:
                 # flip premises whose QA scores are lower than hypothesis score
                 for idx, r in zip(premises_indices, premises):
                     if r.confidence < hypothesis_score:
-                        self.mem_bank[idx].flip()
+                        self.mem_bank[idx].flip(self.confidence_fn)
 
             # if our QA model is more confident about premises,
             # the hypothesis isn't good and we should flip it
             else:
-                hypothesis.flip()
+                hypothesis.flip(self.confidence_fn)
 
         return hypothesis
 
