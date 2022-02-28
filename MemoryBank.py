@@ -149,9 +149,11 @@ class MemoryBank:
         lims, D, I = self.index.range_search(
             x=s_embed, thresh=self.threshold)
 
-        corresponding_indices = [I[lims[i]:lims[i+1]] for i in range(len(lims) - 1)]
-        corresponding_scores = [D[lims[i]:lims[i+1]] for i in range(len(lims) - 1)]
-        
+        corresponding_indices = [I[lims[i]:lims[i+1]]
+                                 for i in range(len(lims) - 1)]
+        corresponding_scores = [D[lims[i]:lims[i+1]]
+                                for i in range(len(lims) - 1)]
+
         retrieved = []
         indices = []
         for idx_list, score_list in zip(corresponding_indices, corresponding_scores):
@@ -278,41 +280,3 @@ class MemoryBank:
 
         # Return the answers for this batch
         return answers
-
-
-def choose_threshold():
-    """
-    Helper function to figure out what threshold to select for faiss lookup
-    """
-    mb = MemoryBank(baseline_config)
-    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes"),
-                   MemoryEntry("poodle", "HasA,nose", 0.9, "yes"),
-                   MemoryEntry("poodle", "CapableOf,grow moldy", 0.9, "no")])
-    mb.add_to_bank([MemoryEntry("seagull", "IsA,bird", 0.9, "yes")])
-
-    # Should get back everything to do witha  poodle
-    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
-        mb.threshold = t
-        retrieved, I = mb.retrieve_from_index(["A poodle is a dog."])
-        print(
-            f"threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
-
-    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
-        mb.threshold = t
-        retrieved, I = mb.retrieve_from_index(["A fridge is cold."])
-        print(
-            f"f: threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
-
-    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
-        mb.threshold = t
-        retrieved, I = mb.retrieve_from_index(["A fridge is cold."])
-        print(
-            f"f: threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
-
-    mb.clear_bank()
-    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes"),
-                   MemoryEntry("poodle", "HasA,nose", 0.9, "yes")])
-    mb.add_to_bank([MemoryEntry("seagull", "IsA,bird", 0.9, "yes")])
-
-
-choose_threshold()

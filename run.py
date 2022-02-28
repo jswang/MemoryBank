@@ -1,6 +1,7 @@
 from MemoryBank import MemoryBank
 from tqdm import tqdm
 from consistency import check_consistency, Implication
+from MemoryEntry import MemoryEntry
 import utils
 import json
 import torch
@@ -8,16 +9,40 @@ import sklearn
 import matplotlib.pyplot as plt
 from models import *
 
-test_sentences = [('Is an american bison a mammal?', 'yes'),
-                  ('Is an american bison an american bison?', 'yes'),
-                  ('Is an american bison an animal?', 'yes'),
-                  ('Is an american bison a vertebrate?', 'yes'),
-                  ('Is an american bison a warm blooded animal?', 'yes'),
-                  ('Can an american bison drink liquids?', 'yes'),
-                  ('Does an american bison have hair?', 'yes'),
-                  ('Is an american bison an air breathing vertebrate?', 'yes'),
-                  ('Can an american bison mate?', 'yes'),
-                  ('Is an american bison an amniote?', 'yes')]
+
+def choose_threshold():
+    """
+    Helper function to figure out what threshold to select for faiss lookup
+    """
+    mb = MemoryBank(baseline_config)
+    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes"),
+                   MemoryEntry("poodle", "HasA,nose", 0.9, "yes"),
+                   MemoryEntry("poodle", "CapableOf,grow moldy", 0.9, "no")])
+    mb.add_to_bank([MemoryEntry("seagull", "IsA,bird", 0.9, "yes")])
+
+    # Should get back everything to do with a poodle
+    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
+        mb.threshold = t
+        retrieved, I = mb.retrieve_from_index(
+            [MemoryEntry("poodle", "IsA,dog", 0.9, "yes")])
+        print(
+            f"threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
+
+    # should bring back nothing
+    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
+        mb.threshold = t
+        retrieved, I = mb.retrieve_from_index(
+            [MemoryEntry("fridge", "HasProperty,cold", 0.9, "yes")])
+        print(
+            f"f: threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
+
+    # maybe should bring out poodle case
+    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
+        mb.threshold = t
+        retrieved, I = mb.retrieve_from_index(
+            [MemoryEntry("fridge", "CapableOf,grow moldy", 0.9, "yes")])
+        print(
+            f"f: threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
 
 
 def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
