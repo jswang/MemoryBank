@@ -21,9 +21,7 @@ class MemoryBank:
         """
         Create a MemoryBank model based on configuration.
         """
-        self.alpha = config['flip_alpha']
-        self.beta = config['flip_beta']
-        self.gamma = config['flip_gamma']
+        self.confidence_fn = config["confidence_fn"]
         self.device = config["device"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
@@ -120,8 +118,15 @@ class MemoryBank:
         raw_probs = torch.squeeze(torch.gather(
             res_softmax, 2, torch.unsqueeze(labels, 2)))
         output_prob = torch.prod(raw_probs, 1)
+        result = []
+        for prob in output_prob:
+            prob = prob.item()
+            if prob >= 0.5:
+                result += [("yes", prob)]
+            else:
+                result += [("no", 1 - prob)]
 
-        return [("yes", a) if a >= 0.5 else ("no", a) for a in output_prob]
+        return result
 
     def add_to_index(self, s_embed: np.array):
         """
@@ -195,12 +200,12 @@ class MemoryBank:
                 # flip premises whose QA scores are lower than hypothesis score
                 for idx, r in zip(premises_indices, premises):
                     if r.confidence < hypothesis_score:
-                        self.mem_bank[idx].flip()
+                        self.mem_bank[idx].flip(self.confidence_fn)
 
             # if our QA model is more confident about premises,
             # the hypothesis isn't good and we should flip it
             else:
-                hypothesis.flip()
+                hypothesis.flip(self.confidence_fn)
 
         return hypothesis
 
@@ -262,7 +267,7 @@ class MemoryBank:
             [q.get_question() for q in questions], context)
         for (i, (ans, conf)) in enumerate(answers):
             questions[i].set_answer(ans)
-            questions[i].set_confidence(conf.item())
+            questions[i].set_confidence(conf)
         statements = questions
 
         # Check against existing constraints to flip as necessary
