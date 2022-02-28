@@ -138,7 +138,7 @@ class MemoryBank:
         s_embed /= np.expand_dims(np.linalg.norm(s_embed, axis=-1), 1)
         self.index.add(s_embed)
 
-    def retrieve_from_index(self, sentences: List[str], feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
+    def retrieve_from_index(self, sentences: List[MemoryEntry], feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
         """
         Retrieve sentence embeddings and sentences from the index.
         s_new is a Tensor, first dimension is batch
@@ -148,24 +148,34 @@ class MemoryBank:
         s_embed /= np.expand_dims(np.linalg.norm(s_embed, axis=-1), 1)
         lims, D, I = self.index.range_search(
             x=s_embed, thresh=self.threshold)
-        D = np.argsort(D)
+
+        corresponding_indices = [I[lims[i]:lims[i+1]] for i in range(len(lims) - 1)]
+        corresponding_scores = [D[lims[i]:lims[i+1]] for i in range(len(lims) - 1)]
+        
         retrieved = []
         indices = []
-        for i in range(D.shape[-1]):
-            e = self.mem_bank[I[D[i]]]
-            retrieved.append(e)
-            indices.append(I[D[i]])
-        retrieved.reverse()
-        indices.reverse()
+        for idx_list, score_list in zip(corresponding_indices, corresponding_scores):
+            # Get items in order of most similar
+            top_indices = np.argsort(score_list)[::-1]
+            # Take top 30 most similar items
+            top_indices = top_indices[:30]
+            for meta_index in top_indices:
+                bank_idx = idx_list[meta_index]
+                e = self.mem_bank[bank_idx]
+                retrieved.append(e)
+                indices.append(bank_idx)
+
         return retrieved, indices
 
     def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry) -> MemoryEntry:
         """
         Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
         """
+        if premises == []:
+            return hypothesis
 
         probs = np.array([self.get_relation(p.get_declarative_statement(
-        ), hypothesis.get_declarative_statement())] for p in premises)
+        ), hypothesis.get_declarative_statement()) for p in premises])
 
         n_entail = np.count_nonzero(probs.argmax(axis=1) == 0)
         n_contra = np.count_nonzero(probs.argmax(axis=1) == 2)
@@ -195,8 +205,8 @@ class MemoryBank:
 
         return hypothesis
 
-    def encode_sent(self, sentences: List[str]):
-        return self.sent_model.encode(sentences, device=self.device, convert_to_tensor=True)
+    def encode_sent(self, sentences: List[MemoryEntry]):
+        return self.sent_model.encode([s.get_pos_statement() for s in sentences], device=self.device, convert_to_tensor=True)
 
     def add_to_bank(self, new_entries: List[MemoryEntry]):
         """ Usage: add_to_bank('owl', 'HasA,Vertebrate', 'yes')"""
@@ -204,8 +214,7 @@ class MemoryBank:
         self.mem_bank += new_entries
 
         # Embed and add to index
-        s_embed = self.encode_sent(
-            [e.get_pos_statement() for e in new_entries])
+        s_embed = self.encode_sent(new_entries)
         self.add_to_index(s_embed)
 
     def clear_bank(self):
@@ -223,12 +232,12 @@ class MemoryBank:
                                                                   max_length=self.max_length,
                                                                   return_token_type_ids=True, truncation=True)
         input_ids = torch.Tensor(
-            tokenized_input_seq_pair['input_ids']).long().unsqueeze(0)
+            tokenized_input_seq_pair['input_ids']).long().unsqueeze(0).to(self.device)
         # remember bart doesn't have 'token_type_ids', remove the line below if you are using bart.
         token_type_ids = torch.Tensor(
-            tokenized_input_seq_pair['token_type_ids']).long().unsqueeze(0)
+            tokenized_input_seq_pair['token_type_ids']).long().unsqueeze(0).to(self.device)
         attention_mask = torch.Tensor(
-            tokenized_input_seq_pair['attention_mask']).long().unsqueeze(0)
+            tokenized_input_seq_pair['attention_mask']).long().unsqueeze(0).to(self.device)
         outputs = self.nli_model(input_ids,
                                  attention_mask=attention_mask,
                                  token_type_ids=token_type_ids,

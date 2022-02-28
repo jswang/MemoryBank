@@ -20,7 +20,7 @@ test_sentences = [('Is an american bison a mammal?', 'yes'),
                   ('Is an american bison an amniote?', 'yes')]
 
 
-def evaluate_model(mem_bank, data, constraints=None, batch_size=400):
+def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     constraints = [Implication(c) for c in constraints["links"]]
 
     # Evaluate baseline (no flipping) on silver facts
-    mem_bank = MemoryBank(baseline_config)
+    mem_bank = MemoryBank(flip_config)
     f1_scores, accuracies, consistencies = evaluate_model(
         mem_bank, data, constraints)
     b = [i for i in range(len(f1_scores))]
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     plt.savefig("figures/raw_benchmarks.png")
 
     # Evaluate flipping
-    mem_bank = MemoryBank(flip_config)
+    mem_bank = MemoryBank(baseline_config)
     f1_scores, accuracies, consistencies = evaluate_model(
         mem_bank, data, constraints)
     b = [i for i in range(len(f1_scores))]
