@@ -15,7 +15,7 @@ flip_config = {
     # Maximum input character length
     "max_input_char_length": 256,
     # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.85,
+    "sentence_similarity_threshold": 0.75,
     # Whether we flip answers to questions
     "enable_flip": True,
     # Whether we add feedback: ("revelant", "topic", None)
@@ -40,7 +40,7 @@ baseline_config = {
     # Maximum input character length
     "max_input_char_length": 256,
     # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.85,
+    "sentence_similarity_threshold": 0.75,
     # Whether we flip answers to questions
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)

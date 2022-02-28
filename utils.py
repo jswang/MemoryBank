@@ -22,20 +22,24 @@ def _modify_entity(ent):
 def _yesno_template_lookup(ent, relation, prop, answer):
     ent = _modify_entity(ent)
     if relation == "HasPart" or relation == "HasA":
-        if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
+        if _check_overlap(prop, ["hair", "teeth"]):
+            return f"Does {ent} have {prop}?", answer
+        if prop == "one mouth":
+            return f"Does {ent} have a mouth?", answer
+        if prop[-1] != "s":
             prop = _modify_entity(prop)
-        return "Does {entity} have {prop}?".format(entity=ent, prop=prop), answer
+            return f"Does {ent} have {prop}?", answer
     elif relation == "MadeOf":
-        return "Is {entity} made of {prop}?".format(entity=ent, prop=prop), answer
+        return f"Is {ent} made of {prop}?", answer
     elif relation == "CapableOf":
         if prop == "eating":
             prop = "eat"
-        return "Can {entity} {prop}?".format(entity=ent, prop=prop), answer
+        return f"Can {ent} {prop}?", answer
     elif relation == "IsA":
         prop = _modify_entity(prop)
-        return "Is {entity} {prop}?".format(entity=ent, prop=prop), answer
+        return f"Is {ent} {prop}?", answer
     else:
-        return "Is {entity} {prop}?".format(entity=ent, prop=prop), answer
+        return f"Is {ent} {prop}?", answer
 
 
 def json_to_qas(file):
@@ -76,24 +80,26 @@ def _declarative_template_lookup(ent, relation, prop):
     ent = ent[0].upper() + ent[1:]
 
     if relation == "HasPart" or relation == "HasA":
+        if prop == "one mouth":
+            return f"{ent} has a mouth", f"{ent} does not have a mouth"
         if prop[-1] != "s" and not _check_overlap(prop, ["hair", "teeth"]):
             prop = _modify_entity(prop)
-        return "{entity} has {prop}.".format(entity=ent, prop=prop), "{entity} does not have {prop}.".format(entity=ent, prop=prop)
+        return f"{ent} has {prop}.", f"{ent} does not have {prop}."
 
     elif relation == "MadeOf":
-        return "{entity} is made of {prop}.".format(entity=ent, prop=prop), "{entity} is not made of {prop}.".format(entity=ent, prop=prop)
+        return f"{ent} is made of {prop}.", f"{ent} is not made of {prop}."
 
     elif relation == "CapableOf":
         if prop == "eating":
             prop = "eat"
-        return "{entity} can {prop}.".format(entity=ent, prop=prop), "{entity} cannot {prop}.".format(entity=ent, prop=prop)
+        return f"{ent} can {prop}.", f"{ent} cannot {prop}."
 
     elif relation == "IsA":
         prop = _modify_entity(prop)
-        return "{entity} is {prop}.".format(entity=ent, prop=prop), "{entity} is not {prop}.".format(entity=ent, prop=prop)
+        return f"{ent} is {prop}.", f"{ent} is not {prop}."
 
     else:
-        return "{entity} is {prop}.".format(entity=ent, prop=prop), "{entity} is not {prop}.".format(entity=ent, prop=prop)
+        return f"{ent} is {prop}.", f"{ent} is not {prop}."
 
 
 def translate_text_declarative(file):

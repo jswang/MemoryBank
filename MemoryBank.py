@@ -142,9 +142,11 @@ class MemoryBank:
         lims, D, I = self.index.range_search(
             x=s_embed, thresh=self.threshold)
 
-        corresponding_indices = [I[lims[i]:lims[i+1]] for i in range(len(lims) - 1)]
-        corresponding_scores = [D[lims[i]:lims[i+1]] for i in range(len(lims) - 1)]
-        
+        corresponding_indices = [I[lims[i]:lims[i+1]]
+                                 for i in range(len(lims) - 1)]
+        corresponding_scores = [D[lims[i]:lims[i+1]]
+                                for i in range(len(lims) - 1)]
+
         retrieved = []
         indices = []
         for idx_list, score_list in zip(corresponding_indices, corresponding_scores):
@@ -174,8 +176,8 @@ class MemoryBank:
         probs = np.array([self.get_relation(p.get_declarative_statement(
         ), hypothesis.get_declarative_statement()) for p in premises])
 
-        n_entail = np.count_nonzero(probs.argmax(axis=1) == 0)
-        n_contra = np.count_nonzero(probs.argmax(axis=1) == 2)
+        n_entail = np.sum(probs.argmax(axis=1) == 0)
+        n_contra = np.sum(probs.argmax(axis=1) == 2)
 
         # if we have more contradictions than we do entailments, we should flip
         # either the hypothesis or one or more premises
@@ -239,7 +241,6 @@ class MemoryBank:
                                  attention_mask=attention_mask,
                                  token_type_ids=token_type_ids,
                                  labels=None)
-        # print(outputs)
         predicted_probability = torch.softmax(outputs[0], dim=1)[
             0].tolist()  # batch_size only one
         return predicted_probability
@@ -275,41 +276,3 @@ class MemoryBank:
 
         # Return the answers for this batch
         return answers
-
-
-def choose_threshold():
-    """
-    Helper function to figure out what threshold to select for faiss lookup
-    """
-    mb = MemoryBank(baseline_config)
-    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes"),
-                   MemoryEntry("poodle", "HasA,nose", 0.9, "yes"),
-                   MemoryEntry("poodle", "CapableOf,grow moldy", 0.9, "no")])
-    mb.add_to_bank([MemoryEntry("seagull", "IsA,bird", 0.9, "yes")])
-
-    # Should get back everything to do witha  poodle
-    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
-        mb.threshold = t
-        retrieved, I = mb.retrieve_from_index(["A poodle is a dog."])
-        print(
-            f"threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
-
-    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
-        mb.threshold = t
-        retrieved, I = mb.retrieve_from_index(["A fridge is cold."])
-        print(
-            f"f: threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
-
-    for t in [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]:
-        mb.threshold = t
-        retrieved, I = mb.retrieve_from_index(["A fridge is cold."])
-        print(
-            f"f: threshold: {mb.threshold}, number retrieved: {len(retrieved)}, {retrieved}")
-
-    mb.clear_bank()
-    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes"),
-                   MemoryEntry("poodle", "HasA,nose", 0.9, "yes")])
-    mb.add_to_bank([MemoryEntry("seagull", "IsA,bird", 0.9, "yes")])
-
-
-# choose_threshold()
