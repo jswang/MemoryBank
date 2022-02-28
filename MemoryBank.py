@@ -120,8 +120,15 @@ class MemoryBank:
         raw_probs = torch.squeeze(torch.gather(
             res_softmax, 2, torch.unsqueeze(labels, 2)))
         output_prob = torch.prod(raw_probs, 1)
+        result = []
+        for prob in output_prob:
+            prob = prob.item()
+            if prob >= 0.5:
+                result += [("yes", prob)]
+            else:
+                result += [("no", 1 - prob)]
 
-        return [("yes", a) if a >= 0.5 else ("no", a) for a in output_prob]
+        return result
 
     def add_to_index(self, s_embed: np.array):
         """

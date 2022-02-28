@@ -59,6 +59,13 @@ def test_flip_or_keep():
     assert ans.answer == 'yes'
 
 
+def test_ask_question():
+    mb = MemoryBank()
+    answers = mb.ask_questions([MemoryEntry("american bison", "IsA,plastic", None, None), MemoryEntry(
+        "american bison", "IsA,company", None, None)], [])
+    print(f"{answers}")
+
+
 def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
     """
     Given a model and data containing questions with ground truth, run through
