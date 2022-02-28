@@ -128,7 +128,7 @@ class MemoryBank:
         Add sentence embeddings to the index
         """
         s_embed = s_embed.cpu().detach().numpy().astype("float32")
-        s_embed /= np.linalg.norm(s_embed, 1)
+        s_embed /= np.expand_dims(np.linalg.norm(s_embed, 2, -1), 1)
         self.index.add(s_embed)
 
     def retrieve_from_index(self, sentences: List[str], feedback_mode=False) -> Tuple[List[MemoryEntry], np.array]:
@@ -138,7 +138,7 @@ class MemoryBank:
         """
         s_embed = self.encode_sent(sentences)
         s_embed = s_embed.cpu().detach().numpy().astype("float32")
-        s_embed /= np.linalg.norm(s_embed, 1)
+        s_embed /= np.expand_dims(np.linalg.norm(s_embed, 2, -1), 1)
         lims, D, I = self.index.range_search(
             x=s_embed, thresh=self.threshold)
         D = np.argsort(D)
@@ -258,8 +258,9 @@ class MemoryBank:
 
 def test_faiss():
     mb = MemoryBank(baseline_config)
-    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes")])
-    mb.add_to_bank([MemoryEntry("segull", "IsA,bird", 0.9, "yes")])
+    mb.add_to_bank([MemoryEntry("poodle", "IsA,dog", 0.9, "yes"),
+                   MemoryEntry("poodle", "HasA,nose", 0.9, "yes")])
+    mb.add_to_bank([MemoryEntry("seagull", "IsA,bird", 0.9, "yes")])
     retrieved, I = mb.retrieve_from_index(["A poodle is a dog."])
     print(f"{retrieved}")
 
