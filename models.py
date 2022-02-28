@@ -24,7 +24,7 @@ flip_config = {
     "device": device,
     "flip_alpha": 1,
     "flip_beta": 1,
-    "flip_gamme": 1
+    "flip_gamma": 1
 }
 
 # Baseline, just question answering
@@ -49,7 +49,7 @@ baseline_config = {
     "device": device,
     "flip_alpha": 1,
     "flip_beta": 1,
-    "flip_gamme": 1
+    "flip_gamma": 1
 }
 
 # Feedback
@@ -74,5 +74,5 @@ feedback_config = {
     "device": device,
     "flip_alpha": 1,
     "flip_beta": 1,
-    "flip_gamme": 1
+    "flip_gamma": 1
 }

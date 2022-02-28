@@ -23,7 +23,7 @@ class MemoryBank:
         """
         self.alpha = config['flip_alpha']
         self.beta = config['flip_beta']
-        self.gamme = config['flip_gamme']
+        self.gamma = config['flip_gamma']
         self.device = config["device"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
