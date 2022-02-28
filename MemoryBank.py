@@ -267,7 +267,7 @@ class MemoryBank:
             [q.get_question() for q in questions], context)
         for (i, (ans, conf)) in enumerate(answers):
             questions[i].set_answer(ans)
-            questions[i].set_confidence(conf.item())
+            questions[i].set_confidence(conf)
         statements = questions
 
         # Check against existing constraints to flip as necessary
