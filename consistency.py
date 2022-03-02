@@ -71,9 +71,9 @@ def check_consistency(bank: MemoryBank, constraints: List[Implication]):
                         violations_count += 1
                         violations += [constraint]
     print(
-        f"Violations: {violations_count}, total implications: {valid_count}, consistency: {1 - violations_count/valid_count}")
+        f"Violations: {violations_count}, total implications: {valid_count}, consistency: {1 - violations_count/(valid_count+ 1e-10)}")
 
-    return 1 - violations_count/valid_count, violations_count, valid_count
+    return 1 - violations_count/(valid_count + 1e-10), violations_count, valid_count
 
 # Unit tests
 

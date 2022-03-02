@@ -96,14 +96,15 @@ class MemoryBank:
         Ask the Macaw model a batch of yes or no questions.
         Returns "yes" or "no" and a confidence score
         """
+
         # Insert feedback if necesasry
         if len(context) == len(questions):
             input_string = [
-                f"$answer$ ; $mcoptions$ = (A) yes (B) no; $context$ = {context[i]} ; $question$ = {questions[i]}"
+                f"$answer$ ; $mcoptions$ = (A) yes (B) no ; $context$ = {context[i]} ; $question$ = {questions[i]}"
                 for i in range(len(context))]
         else:
             input_string = [
-                f"$answer$ ; $mcoptions$ = (A) yes (B) no; $question$ = {q}" for q in questions]
+                f"$answer$ ; $mcoptions$ = (A) yes (B) no ; $question$ = {q}" for q in questions]
         # print(input_string)
         # Tokenize questions
         input_ids = self.qa_tokenizer(
@@ -184,6 +185,10 @@ class MemoryBank:
         n_entail = np.sum(probs.argmax(axis=1) == 0)
         n_contra = np.sum(probs.argmax(axis=1) == 2)
 
+        mem_flips = 0
+        possible_mem_flips = len(premises)
+        hyp_flip = 0
+
         # if we have more contradictions than we do entailments, we should flip
         # either the hypothesis or one or more premises
         if n_entail < n_contra:
@@ -201,12 +206,24 @@ class MemoryBank:
                 for idx, r in zip(premises_indices, premises):
                     if r.confidence < hypothesis_score:
                         self.mem_bank[idx].flip(self.confidence_fn)
-
+                        mem_flips += 1
             # if our QA model is more confident about premises,
             # the hypothesis isn't good and we should flip it
             else:
                 hypothesis.flip(self.confidence_fn)
+                hyp_flip += 1
+                # And flip the entailment premises
+                premises_to_flip = (probs.argmax(axis=1) == 0)
+                for (i, p) in enumerate(premises_to_flip):
+                    if p:
+                        idx = premises_indices[i]
+                        r = premises[i]
+                        # if r.confidence < hypothesis_score:
+                        self.mem_bank[idx].flip(self.confidence_fn)
+                        mem_flips += 1
 
+        print(
+            f"n_entail: {n_entail}, n_contra: {n_contra}, mem_flips/possible: {mem_flips}/{possible_mem_flips}, hyp_flip: {hyp_flip}")
         return hypothesis
 
     def encode_sent(self, sentences: List[MemoryEntry]):
