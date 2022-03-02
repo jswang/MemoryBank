@@ -114,14 +114,15 @@ class MemoryBank:
             "$answer$ = yes", return_tensors="pt", max_length=self.max_length).input_ids.to(self.device)
         labels = torch.tile(labels, (len(questions), 1))
         # Calculate probability of yes answer
-        res = self.qa_model(input_ids, labels=labels)
-        res_softmax = torch.softmax(res.logits, dim=2)
-        raw_probs = torch.squeeze(torch.gather(
-            res_softmax, 2, torch.unsqueeze(labels, 2)))
-        output_prob = torch.prod(raw_probs, 1)
         result = []
-        for prob in output_prob:
-            prob = prob.item()
+        for (id, label) in zip(input_ids, labels):
+            res = self.qa_model(torch.unsqueeze(
+                id, 0), labels=torch.unsqueeze(label, 0))
+            res_softmax = torch.softmax(res.logits, dim=2)
+            raw_probs = torch.squeeze(torch.gather(
+                res_softmax, 2, label.unsqueeze(0).unsqueeze(2)))
+            output_prob = torch.prod(raw_probs)
+            prob = output_prob.item()
             if prob >= 0.5:
                 result += [("yes", prob)]
             else:
