@@ -66,7 +66,7 @@ def test_ask_question():
     print(f"{answers}")
 
 
-def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
+def evaluate_model(mem_bank, data, constraints=None, batch_size=5):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
@@ -81,7 +81,8 @@ def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
         a_pred_batch = mem_bank.forward(q_batch)
         a_pred_batch = torch.tensor(
             [1 if a == "yes" else 0 for a in a_pred_batch])
-        f1_scores += [sklearn.metrics.f1_score(a_truth[i:end], a_pred_batch)]
+        f1_scores += [sklearn.metrics.f1_score(
+            a_truth[i:end], a_pred_batch, zero_division=0)]
         accuracies += [torch.sum(a_truth[i:end] == a_pred_batch) / batch_size]
         if constraints is not None:
             c, _, _ = check_consistency(mem_bank, constraints)
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
-    # Evaluate baseline (no flipping) on silver facts
+    # Evaluate flipping model
     mem_bank = MemoryBank(flip_config)
     f1_scores, accuracies, consistencies = evaluate_model(
         mem_bank, data, constraints)
@@ -107,7 +108,7 @@ if __name__ == "__main__":
     plt.title("Flip model benchmarks")
     plt.savefig("figures/flip_benchmarks.png")
 
-    # Evaluate flipping
+    # Evaluate no flipping baseline model
     mem_bank = MemoryBank(baseline_config)
     f1_scores, accuracies, consistencies = evaluate_model(
         mem_bank, data, constraints)
