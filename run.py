@@ -90,6 +90,20 @@ def evaluate_model(mem_bank, data, constraints=None, batch_size=11):
     return f1_scores, accuracies, consistencies
 
 
+def save_data(config, f1_scores, accuracies, consistencies):
+    from datetime import datetime
+    import json
+    timestamp = datetime.timestamp(datetime.now())
+    date_time = datetime.fromtimestamp(timestamp)
+    output_f = open("results/" + date_time.strftime("%c") + "-results.json", "w+")
+    res_dict = {
+        "config": str(config),
+        "f1": str(f1_scores),
+        "accuracies": str(accuracies),
+        "consistencies": str(consistencies)
+    }
+    json.dump(res_dict, output_f)
+
 if __name__ == "__main__":
     data = utils.json_to_tuples(json.load(open("data/silver_facts.json")))
     constraints = json.load(open("data/constraints_v2.json"))
@@ -99,6 +113,7 @@ if __name__ == "__main__":
     mem_bank = MemoryBank(flip_config)
     f1_scores, accuracies, consistencies = evaluate_model(
         mem_bank, data, constraints)
+    save_data(flip_config, f1_scores, accuracies, consistencies)
     b = [i for i in range(len(f1_scores))]
     plt.plot(b, f1_scores, label="F1 scores")
     plt.plot(b, accuracies, label="Accuracy")
@@ -112,6 +127,7 @@ if __name__ == "__main__":
     mem_bank = MemoryBank(baseline_config)
     f1_scores, accuracies, consistencies = evaluate_model(
         mem_bank, data, constraints)
+    save_data(baseline_config, f1_scores, accuracies, consistencies)
     b = [i for i in range(len(f1_scores))]
     plt.plot(b, f1_scores, label="F1 scores")
     plt.plot(b, accuracies, label="Accuracy")
