@@ -65,8 +65,16 @@ class MemoryEntry:
 
 
 if __name__ == '__main__':
-    m = MemoryEntry('american bison', 'IsA,mammal', 'yes')
-    print(m.get_pos_statement())
-    print(m.get_neg_statement())
-    print(m.get_question())
-    print(m.get_answer())
+    import utils
+    import json
+    a = MemoryEntry(entity='carp', relation='HasA,no legs',
+                    confidence='yes', answer=None)
+    a.get_question()
+    entries = data = utils.json_to_tuples(
+        json.load(open("data/silver_facts.json")))
+    entries = [MemoryEntry(e[0], e[1], e[2]) for e in entries]
+    for e in entries:
+        e.get_pos_statement()
+        e.get_neg_statement()
+        e.get_question()
+        e.get_answer()

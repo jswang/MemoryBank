@@ -29,6 +29,8 @@ def _yesno_template_lookup(ent, relation, prop, answer):
         if prop[-1] != "s":
             prop = _modify_entity(prop)
             return f"Does {ent} have {prop}?", answer
+        else:
+            return f"Does {ent} have {prop}?", answer
     elif relation == "MadeOf":
         return f"Is {ent} made of {prop}?", answer
     elif relation == "CapableOf":
@@ -40,6 +42,7 @@ def _yesno_template_lookup(ent, relation, prop, answer):
         return f"Is {ent} {prop}?", answer
     else:
         return f"Is {ent} {prop}?", answer
+
 
 
 def json_to_qas(file):
