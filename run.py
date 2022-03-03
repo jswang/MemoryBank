@@ -9,6 +9,7 @@ import sklearn
 import matplotlib.pyplot as plt
 from models import *
 import time
+import numpy as np
 
 
 def choose_threshold():
@@ -110,6 +111,35 @@ def save_data(config, f1_scores, accuracies, consistencies):
         json.dump(res_dict, f)
 
 
+def load_and_plot(filename, config):
+    with open(filename, 'r') as f:
+        data = json.load(f)
+        f1_scores = data['f1'].strip('[]').split(',')
+        f1_scores = [float(f.strip()) for f in f1_scores]
+        accuracies = data['accuracies'].strip('[]').split(',')
+        accuracies = [float(f.strip(' tensor()')) for f in accuracies]
+        consistencies = data['consistencies'].strip('[]').split(',')
+        consistencies = [float(f.strip()) for f in consistencies]
+        plot(f1_scores, accuracies, consistencies, config)
+
+
+def plot(f1_scores, accuracies, consistencies, config):
+    b = [i for i in range(len(f1_scores))]
+    plt.plot(b, accuracies, label="Accuracy")
+    plt.plot(b, consistencies, label="Consistency")
+    # clean up f1 scores a littlebit
+    f1_scores = np.array(f1_scores)
+    b = np.array(b)
+    new_f1 = f1_scores[np.where(f1_scores != 0)]
+    new_b = b[np.where(f1_scores != 0)]
+    plt.plot(new_b, new_f1, label="F1 scores")
+    plt.legend()
+    plt.xlabel("After Batch")
+    plt.title(f"{config['name']} Model benchmarks")
+    plt.savefig(f"figures/{config['name']}_benchmarks.png")
+    plt.close()
+
+
 if __name__ == "__main__":
     data = utils.json_to_tuples(json.load(open("data/silver_facts.json")))
     constraints = json.load(open("data/constraints_v2.json"))
@@ -121,11 +151,8 @@ if __name__ == "__main__":
         f1_scores, accuracies, consistencies = evaluate_model(
             mem_bank, data, constraints)
         save_data(config, f1_scores, accuracies, consistencies)
-        b = [i for i in range(len(f1_scores))]
-        plt.plot(b, f1_scores, label="F1 scores")
-        plt.plot(b, accuracies, label="Accuracy")
-        plt.plot(b, consistencies, label="Consistency")
-        plt.legend()
-        plt.xlabel("After Batch")
-        plt.title(f"{config['name']} Model benchmarks")
-        plt.savefig("figures/flip_benchmarks.png")
+        plot(f1_scores, accuracies, consistencies, config)
+
+    # load_and_plot("data/results_03_03_18:42:01.json", feedback_relevant_config)
+    # load_and_plot("data/results_03_03_18:33:42.json", flip_config)
+    # load_and_plot("data/results_03_03_17:35:53.json", baseline_config)
