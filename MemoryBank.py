@@ -91,7 +91,7 @@ class MemoryBank:
         # print(questions, "< ======== QUESTIONS")
         return contexts
 
-    def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> List[Tuple[str, float]]:
+    def ask_questions(self, questions: List[str], context: List[Tuple[str, str]]) -> Tuple[List[str], List[float]]:
         """
         Ask the Macaw model a batch of yes or no questions.
         Returns "yes" or "no" and a confidence score
@@ -121,15 +121,18 @@ class MemoryBank:
         raw_probs = torch.squeeze(torch.gather(
             res_softmax, 2, torch.unsqueeze(labels, 2)))
         output_prob = torch.prod(raw_probs, 1)
-        result = []
+        answers = []
+        probs = []
         for prob in output_prob:
             prob = prob.item()
             if prob >= 0.5:
-                result += [("yes", prob)]
+                answers += ["yes"]
+                probs += [prob]
             else:
-                result += [("no", 1 - prob)]
+                answers += ["no"]
+                probs += [1-prob]
 
-        return result
+        return answers, probs
 
     def add_to_index(self, s_embed: np.array):
         """
@@ -285,12 +288,12 @@ class MemoryBank:
             context = self.generate_feedback(questions)
         t1 = time.time()
         # Ask your question
-        answers = self.ask_questions(
+        answers, probs = self.ask_questions(
             [q.get_question() for q in questions], context)
         t2 = time.time()
-        for (i, (ans, conf)) in enumerate(answers):
-            questions[i].set_answer(ans)
-            questions[i].set_confidence(conf)
+        for i in range(len(questions)):
+            questions[i].set_answer(answers[i])
+            questions[i].set_confidence(probs[i])
         statements = questions
 
         # Check against existing constraints to flip as necessary

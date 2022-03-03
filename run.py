@@ -62,9 +62,9 @@ def test_flip_or_keep():
 
 def test_ask_question():
     mb = MemoryBank()
-    answers = mb.ask_questions([MemoryEntry("american bison", "IsA,plastic", None, None), MemoryEntry(
+    answers, probs = mb.ask_questions([MemoryEntry("american bison", "IsA,plastic", None, None), MemoryEntry(
         "american bison", "IsA,company", None, None)], [])
-    print(f"{answers}")
+    print(f"{answers}, {probs}")
 
 
 def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
