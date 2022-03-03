@@ -105,24 +105,25 @@ class MemoryBank:
         else:
             input_string = [
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no ; $question$ = {q}" for q in questions]
-        # print(input_string)
         # Tokenize questions
-        input_ids = self.qa_tokenizer(
-            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length).input_ids.to(self.device)
+        inputs = self.qa_tokenizer(
+            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length)
+        input_ids = inputs.input_ids.to(self.device)
+        input_attention_mask = inputs.attention_mask.to(self.device)
         # Ask the questions, include a label to gather confidence
         labels = self.qa_tokenizer(
             "$answer$ = yes", return_tensors="pt", max_length=self.max_length).input_ids.to(self.device)
         labels = torch.tile(labels, (len(questions), 1))
         # Calculate probability of yes answer
+        # model forward pass docs: https://huggingface.co/docs/transformers/v4.17.0/en/model_doc/t5#transformers.T5ForConditionalGeneration
+        res = self.qa_model(input_ids, input_attention_mask, labels=labels)
+        res_softmax = torch.softmax(res.logits, dim=2)
+        raw_probs = torch.squeeze(torch.gather(
+            res_softmax, 2, torch.unsqueeze(labels, 2)))
+        output_prob = torch.prod(raw_probs, 1)
         result = []
-        for (id, label) in zip(input_ids, labels):
-            res = self.qa_model(torch.unsqueeze(
-                id, 0), labels=torch.unsqueeze(label, 0))
-            res_softmax = torch.softmax(res.logits, dim=2)
-            raw_probs = torch.squeeze(torch.gather(
-                res_softmax, 2, label.unsqueeze(0).unsqueeze(2)))
-            output_prob = torch.prod(raw_probs)
-            prob = output_prob.item()
+        for prob in output_prob:
+            prob = prob.item()
             if prob >= 0.5:
                 result += [("yes", prob)]
             else:
