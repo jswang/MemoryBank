@@ -80,7 +80,10 @@ class MemoryBank:
         """
         if self.feedback == "relevant":
             R, I = self.retrieve_from_index(questions)
-            contexts = [e.get_declarative_statement() for r in R for e in r]
+            contexts = []
+            for r in R:
+                contexts.append(" ".join([e.get_declarative_statement() for e in r[:self.n_feedback]]))
+            # contexts = [e.get_declarative_statement() for r in R for e in r]
         else:
             # List of strings, each string corresponding to self.n_feedback relevant beliefs
             contexts = self.find_same_topic(questions)
