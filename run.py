@@ -67,7 +67,7 @@ def test_ask_question():
     print(f"{answers}")
 
 
-def evaluate_model(mem_bank, data, constraints=None, batch_size=100):
+def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
