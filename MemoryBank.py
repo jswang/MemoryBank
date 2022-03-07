@@ -180,6 +180,20 @@ class MemoryBank:
 
         return retrieved, indices
 
+    def check_and_flip(self, premises, premise_indices, hypothesis, conf_thresh=0.25):
+        """
+        Go through the premises in the scope, check confidence levels and decide whether to flip
+        """
+        mem_flips = 0
+        hypothesis_score = hypothesis.get_confidence()
+        for i, (idx, r) in enumerate(zip(premise_indices, premises)):
+            if r.confidence + conf_thresh < hypothesis_score:
+                print(hypothesis.get_declarative_statement(), hypothesis.get_confidence(), self.mem_bank[idx].get_confidence(), "FLIPPING BELIEF ->",
+                      self.mem_bank[idx].get_declarative_statement())
+                self.mem_bank[idx].flip(self.confidence_fn)
+                mem_flips += 1
+        return mem_flips
+
     def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry) -> MemoryEntry:
         """
         Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
@@ -187,11 +201,10 @@ class MemoryBank:
         if premises == []:
             return hypothesis
 
-        probs = np.array([self.get_relation(p.get_declarative_statement(
-        ), hypothesis.get_declarative_statement()) for p in premises])
+        probs = np.array([self.get_relation(p.get_nli_statement(), hypothesis.get_nli_statement()) for p in premises])
 
-        n_entail = np.sum(probs.argmax(axis=1) == 0)
-        n_contra = np.sum(probs.argmax(axis=1) == 2)
+        n_entail = np.sum(probs[:, 0])
+        n_contra = np.sum(probs[:, 1])
 
         mem_flips = 0
         possible_mem_flips = len(premises)
@@ -201,7 +214,18 @@ class MemoryBank:
         # either the hypothesis or one or more premises
         if n_entail < n_contra:
             hypothesis_score = hypothesis.get_confidence()
-            premise_scores = np.array([r.get_confidence() for r in premises])
+            contra_premise_ind = []
+            contra_premise = []
+            entail_premise_ind = []
+            entail_premise = []
+            for i in range(len(premises)):
+                if probs[i, 0] > probs[i, 1]:
+                    entail_premise_ind.append(premises_indices[i])
+                    entail_premise.append(premises[i])
+                else:
+                    contra_premise_ind.append(premises_indices[i])
+                    contra_premise.append(premises[i])
+            premise_scores = np.array([r.get_confidence() for r in contra_premise])
 
             hypothesis_votes = np.sum(
                 hypothesis_score > premise_scores)
@@ -211,25 +235,15 @@ class MemoryBank:
             # the hypothesis is good and we should flip some premises
             if hypothesis_votes > premise_votes:
                 # flip premises whose QA scores are lower than hypothesis score
-                for idx, r in zip(premises_indices, premises):
-                    if r.confidence < hypothesis_score:
-                        self.mem_bank[idx].flip(self.confidence_fn)
-                        mem_flips += 1
+                mem_flips += self.check_and_flip(contra_premise, contra_premise_ind, hypothesis)
+
             # if our QA model is more confident about premises,
             # the hypothesis isn't good and we should flip it
             else:
+                # And flip the entailment premises
+                mem_flips += self.check_and_flip(entail_premise, entail_premise_ind, hypothesis)
                 hypothesis.flip(self.confidence_fn)
                 hyp_flip += 1
-                # And flip the entailment premises
-                premises_to_flip = (probs.argmax(axis=1) == 0)
-                for (i, p) in enumerate(premises_to_flip):
-                    if p:
-                        idx = premises_indices[i]
-                        r = premises[i]
-                        # if r.confidence < hypothesis_score:
-                        self.mem_bank[idx].flip(self.confidence_fn)
-                        mem_flips += 1
-
         # print(
         #     f"n_entail: {n_entail}, n_contra: {n_contra}, mem_flips/possible: {mem_flips}/{possible_mem_flips}, hyp_flip: {hyp_flip}")
         return hypothesis
@@ -267,12 +281,16 @@ class MemoryBank:
             tokenized_input_seq_pair['token_type_ids']).long().unsqueeze(0).to(self.device)
         attention_mask = torch.Tensor(
             tokenized_input_seq_pair['attention_mask']).long().unsqueeze(0).to(self.device)
-        outputs = self.nli_model(input_ids,
-                                 attention_mask=attention_mask,
-                                 token_type_ids=token_type_ids,
-                                 labels=None)
-        predicted_probability = torch.softmax(outputs[0], dim=1)[
-            0].tolist()  # batch_size only one
+        with torch.no_grad():
+            outputs = self.nli_model(input_ids,
+                                     attention_mask=attention_mask,
+                                     token_type_ids=token_type_ids,
+                                     labels=None)
+        # print("PREDICTED OUT", outputs)
+        if torch.argmax(outputs.logits, dim=1) == 1:
+            return np.zeros(2)
+        predicted_probability = torch.softmax(torch.cat((outputs.logits[:, 0], outputs.logits[:, 2])), dim=-1).detach().cpu().numpy() # batch_size only one
+        # print("PREDICTED PROB", predicted_probability)
         return predicted_probability
 
     def forward(self, inputs: List[Tuple[str, str, str]]):
@@ -316,4 +334,4 @@ class MemoryBank:
         print(f"Time elapsed: {t6- t0}s, ask_questions: {t2 - t1}s")
 
         # Return the answers for this batch
-        return answers
+        return [a.get_answer() for a in statements]

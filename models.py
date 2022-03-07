@@ -27,6 +27,55 @@ flip_config = {
     "confidence_fn": lambda: 0.5,
 }
 
+# Model tries to flip sentences, no feedback
+flip_95_config = {
+    "name": "Flip only",
+    # NLI model which outputs relation of premise and hypothesis
+    "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
+    # Question answering model
+    "qa_model": "allenai/macaw-large",
+    # Sentence
+    "sentence_model": "paraphrase-MiniLM-L6-v2",
+    # Number of semantically similar constraints to compare against
+    "n_semantic": 3,
+    # Maximum input character length
+    "max_input_char_length": 256,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.75,
+    # Whether we flip answers to questions
+    "enable_flip": True,
+    # Whether we add feedback: ("revelant", "topic", None)
+    "feedback_type": None,
+    # Device: defaults to whatever is available
+    "device": device,
+    # When flipping, the confidence to give to a flipped answer
+    "confidence_fn": lambda: 0.95,
+}
+
+flip_95_relevant_config = {
+    "name": "Flip + Relevant Feedback (Flip Confidence 0.95, Confidence Thresh 0.25)",
+    # NLI model which outputs relation of premise and hypothesis
+    "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
+    # Question answering model
+    "qa_model": "allenai/macaw-large",
+    # Sentence
+    "sentence_model": "paraphrase-MiniLM-L6-v2",
+    # Number of semantically similar constraints to compare against
+    "n_semantic": 3,
+    # Maximum input character length
+    "max_input_char_length": 256,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.75,
+    # Whether we flip answers to questions
+    "enable_flip": True,
+    # Whether we add feedback: ("revelant", "topic", None)
+    "feedback_type": "relevant",
+    # Device: defaults to whatever is available
+    "device": device,
+    # When flipping, the confidence to give to a flipped answer
+    "confidence_fn": lambda: 0.95,
+}
+
 # Baseline, just question answering
 baseline_config = {
     "name": "Baseline",
@@ -54,7 +103,7 @@ baseline_config = {
 
 # Feedback
 feedback_relevant_config = {
-    "name": "Relevant feedback only",
+    "name": "Relevant feedback only (0.5)",
     # NLI model which outputs relation of premise and hypothesis
     "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
     # Question answering model
@@ -66,7 +115,7 @@ feedback_relevant_config = {
     # Maximum input character length
     "max_input_char_length": 256,
     # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.6,
+    "sentence_similarity_threshold": 0.5,
     # Whether we flip answers to questions
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)

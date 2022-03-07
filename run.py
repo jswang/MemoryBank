@@ -68,7 +68,7 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, constraints=None, batch_size=50):
+def evaluate_model(mem_bank, data, constraints=None, batch_size=30):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     constraints = [Implication(c) for c in constraints["links"]]
 
     # Evaluate baseline model
-    for config in [baseline_config, flip_config, feedback_relevant_config]:
+    for config in [flip_95_relevant_config]:
         mem_bank = MemoryBank(config)
         f1_scores, accuracies, consistencies = evaluate_model(
             mem_bank, data, constraints)
