@@ -95,10 +95,7 @@ def evaluate_model(mem_bank, data, constraints=None, batch_size=30):
         writer.add_scalar(f"Accuracy/{mem_bank.name}", accuracy, i)
         writer.add_scalar(f"F1 Score/{mem_bank.name}", f1_scr, i)
         if constraints is not None:
-            t0 = time.time()
             c, _, _ = check_consistency(mem_bank, constraints)
-            t1 = time.time()
-            print(f"Consistency check: {t1 - t0}s")
             consistencies += [c]
             writer.add_scalar(f"Consistency/{mem_bank.name}", c, i)
     writer.flush()
