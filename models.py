@@ -15,16 +15,18 @@ flip_config = {
     "n_semantic": 3,
     # Maximum input character length
     "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.75,
     # Whether we flip answers to questions
     "enable_flip": True,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
     # Device: defaults to whatever is available
     "device": device,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.75,
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": lambda: 0.5,
+    "default_flipped_confidence": 0.5,
+    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
+    "flip_premise_threshold": 0.25
 }
 
 # Model tries to flip sentences, no feedback
@@ -40,16 +42,18 @@ flip_95_config = {
     "n_semantic": 3,
     # Maximum input character length
     "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.75,
     # Whether we flip answers to questions
     "enable_flip": True,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
     # Device: defaults to whatever is available
     "device": device,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.75,
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": lambda: 0.95,
+    "default_flipped_confidence": 0.95,
+    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
+    "flip_premise_threshold": 0.25
 }
 
 flip_95_relevant_config = {
@@ -64,16 +68,18 @@ flip_95_relevant_config = {
     "n_semantic": 3,
     # Maximum input character length
     "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.75,
     # Whether we flip answers to questions
     "enable_flip": True,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": "relevant",
     # Device: defaults to whatever is available
     "device": device,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.75,
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": lambda: 0.95,
+    "default_flipped_confidence": 0.95,
+    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
+    "flip_premise_threshold": 0.25,
     # max number of relevant feedbacks
     'max_retreived': 30
 }
@@ -91,16 +97,12 @@ baseline_config = {
     "n_semantic": 3,
     # Maximum input character length
     "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.75,
     # Whether we flip answers to questions
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
     # Device: defaults to whatever is available
     "device": device,
-    # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": lambda: 0.5,
 }
 
 # Feedback
@@ -116,16 +118,18 @@ feedback_relevant_config = {
     "n_semantic": 3,
     # Maximum input character length
     "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.5,
     # Whether we flip answers to questions
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": "relevant",
     # Device: defaults to whatever is available
     "device": device,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.5,
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": lambda: 0.5,
+    "default_flipped_confidence": 0.5,
+    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
+    "flip_premise_threshold": 0.25,
     # max number of relevant feedbacks
     'max_retreived': 30
 }
@@ -143,15 +147,16 @@ feedback_topic_config = {
     "n_semantic": 3,
     # Maximum input character length
     "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.6,
     # Whether we flip answers to questions
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": "topic",
     # Device: defaults to whatever is available
     "device": device,
-    "flip_alpha": 1,
-    "flip_beta": 1,
-    "flip_gamma": 1
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.6,
+    # When flipping, the confidence to give to a flipped answer
+    "default_flipped_confidence": 0.5,
+    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
+    "flip_premise_threshold": 0.25
 }
