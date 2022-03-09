@@ -161,6 +161,7 @@ if __name__ == "__main__":
     if args.validation:
         random.seed(10)
         data = random.sample(data, len(data) // 10)
+    random.shuffle(data)
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
