@@ -1,5 +1,3 @@
-import argparse
-import random
 from MemoryBank import MemoryBank
 from tqdm import tqdm
 from consistency import check_consistency, Implication
@@ -150,15 +148,7 @@ def plot(f1_scores, accuracies, consistencies, config):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run MemoryBank.')
-    parser.add_argument('--validation', action='store_true')
-    args = parser.parse_args()
-
     data = utils.json_to_tuples(json.load(open("data/silver_facts.json")))
-    random.seed(10)
-    if args.validation:
-        data = random.sample(data, len(data) // 10)
-    random.shuffle(data)
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
