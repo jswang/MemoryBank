@@ -248,6 +248,7 @@ class MemoryBank:
                 mem_flips += self.check_and_flip(entail_premise,
                                                  entail_premise_ind, hypothesis)
                 hypothesis.flip(self.confidence_fn)
+                print(f'flipping {hypothesis.get_declarative_statement()}')
                 hyp_flip += 1
         # print(
         #     f"n_entail: {n_entail}, n_contra: {n_contra}, mem_flips/possible: {mem_flips}/{possible_mem_flips}, hyp_flip: {hyp_flip}")

@@ -153,7 +153,6 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mode', nargs=1, default='full_dataset')
     args = parser.parse_args()
     mode = args.mode[0]
-    print(mode)
     assert mode in ['full_dataset', 'val', 'test']
     data_filename = "data/silver_facts.json"
     if mode != 'full_dataset':
