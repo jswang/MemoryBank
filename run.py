@@ -158,8 +158,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data = utils.json_to_tuples(json.load(open("data/silver_facts.json")))
+    random.seed(10)
     if args.validation:
-        random.seed(10)
         data = random.sample(data, len(data) // 10)
     random.shuffle(data)
     constraints = json.load(open("data/constraints_v2.json"))
