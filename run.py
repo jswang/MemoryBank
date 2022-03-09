@@ -13,6 +13,10 @@ from models import *
 import time
 import numpy as np
 
+import torch
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
+
 
 def choose_threshold():
     """
@@ -85,15 +89,21 @@ def evaluate_model(mem_bank, data, constraints=None, batch_size=30):
         a_pred_batch = mem_bank.forward(q_batch)
         a_pred_batch = torch.tensor(
             [1 if a == "yes" else 0 for a in a_pred_batch])
-        f1_scores += [sklearn.metrics.f1_score(
-            a_truth[i:end], a_pred_batch, zero_division=0)]
-        accuracies += [torch.sum(a_truth[i:end] == a_pred_batch) / batch_size]
+        f1_scr = sklearn.metrics.f1_score(
+            a_truth[i:end], a_pred_batch, zero_division=0)
+        f1_scores += [f1_scr]
+        accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
+        accuracies += [accuracy]
+        writer.add_scalar(f"Accuracy/{mem_bank.name}", accuracy, i)
+        writer.add_scalar(f"F1 Score/{mem_bank.name}", f1_scr, i)
         if constraints is not None:
             t0 = time.time()
             c, _, _ = check_consistency(mem_bank, constraints)
             t1 = time.time()
             print(f"Consistency check: {t1 - t0}s")
             consistencies += [c]
+            writer.add_scalar(f"Consistency/{mem_bank.name}", c, i)
+    writer.flush()
     return f1_scores, accuracies, consistencies
 
 
