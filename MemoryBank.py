@@ -21,6 +21,7 @@ class MemoryBank:
         """
         Create a MemoryBank model based on configuration.
         """
+        self.name = config["name"]
         self.confidence_fn = config["confidence_fn"]
         self.device = config["device"]
 

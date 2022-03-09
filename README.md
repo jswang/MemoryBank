@@ -23,3 +23,10 @@ Sample test of current util functions translate_text and translate_conllu:
 ```
 python utils.py
 ```
+
+To visualize results, run:
+```
+tensorboard --logdir=runs
+```
+And open http://localhost:6006/
+
