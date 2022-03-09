@@ -82,7 +82,8 @@ class MemoryBank:
             R, I = self.retrieve_from_index(questions)
             contexts = []
             for r in R:
-                contexts.append(" ".join([e.get_declarative_statement() for e in r[:self.n_feedback]]))
+                contexts.append(
+                    " ".join([e.get_declarative_statement() for e in r[:self.n_feedback]]))
             # contexts = [e.get_declarative_statement() for r in R for e in r]
         else:
             # List of strings, each string corresponding to self.n_feedback relevant beliefs
@@ -201,10 +202,11 @@ class MemoryBank:
         if premises == []:
             return hypothesis
 
-        probs = np.array([self.get_relation(p.get_nli_statement(), hypothesis.get_nli_statement()) for p in premises])
+        probs = np.array([self.get_relation(
+            p.get_nli_statement(), hypothesis.get_nli_statement()) for p in premises])
 
         n_entail = np.sum(probs[:, 0])
-        n_contra = np.sum(probs[:, 1])
+        n_contra = np.sum(probs[:, 2])
 
         mem_flips = 0
         possible_mem_flips = len(premises)
@@ -225,7 +227,8 @@ class MemoryBank:
                 else:
                     contra_premise_ind.append(premises_indices[i])
                     contra_premise.append(premises[i])
-            premise_scores = np.array([r.get_confidence() for r in contra_premise])
+            premise_scores = np.array([r.get_confidence()
+                                      for r in contra_premise])
 
             hypothesis_votes = np.sum(
                 hypothesis_score > premise_scores)
@@ -235,13 +238,15 @@ class MemoryBank:
             # the hypothesis is good and we should flip some premises
             if hypothesis_votes > premise_votes:
                 # flip premises whose QA scores are lower than hypothesis score
-                mem_flips += self.check_and_flip(contra_premise, contra_premise_ind, hypothesis)
+                mem_flips += self.check_and_flip(contra_premise,
+                                                 contra_premise_ind, hypothesis)
 
             # if our QA model is more confident about premises,
             # the hypothesis isn't good and we should flip it
             else:
                 # And flip the entailment premises
-                mem_flips += self.check_and_flip(entail_premise, entail_premise_ind, hypothesis)
+                mem_flips += self.check_and_flip(entail_premise,
+                                                 entail_premise_ind, hypothesis)
                 hypothesis.flip(self.confidence_fn)
                 hyp_flip += 1
         # print(
@@ -286,11 +291,9 @@ class MemoryBank:
                                      attention_mask=attention_mask,
                                      token_type_ids=token_type_ids,
                                      labels=None)
-        # print("PREDICTED OUT", outputs)
-        if torch.argmax(outputs.logits, dim=1) == 1:
-            return np.zeros(2)
-        predicted_probability = torch.softmax(torch.cat((outputs.logits[:, 0], outputs.logits[:, 2])), dim=-1).detach().cpu().numpy() # batch_size only one
-        # print("PREDICTED PROB", predicted_probability)
+
+        predicted_probability = torch.softmax(
+            outputs.logits, dim=-1).squeeze().detach().cpu().numpy()
         return predicted_probability
 
     def forward(self, inputs: List[Tuple[str, str, str]]):
