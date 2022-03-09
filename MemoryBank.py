@@ -1,6 +1,5 @@
 import random
 from typing import Tuple, List
-import time
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, logging
 import torch
 import numpy as np
@@ -304,18 +303,15 @@ class MemoryBank:
         `inputs` - batch of inputs to parse, expect of tuple of (entity, relation, answer)
         """
         # triplet to question
-        t0 = time.time()
         questions = [MemoryEntry(i[0], i[1]) for i in inputs]
         context = []
 
         # Generate context if necessary
         if self.feedback is not None:
             context = self.generate_feedback(questions)
-        t1 = time.time()
         # Ask your question
         answers, probs = self.ask_questions(
             [q.get_question() for q in questions], context)
-        t2 = time.time()
         for i in range(len(questions)):
             questions[i].set_answer(answers[i])
             questions[i].set_confidence(probs[i])
@@ -323,19 +319,12 @@ class MemoryBank:
 
         # Check against existing constraints to flip as necessary
         if self.enable_flip:
-            t3 = time.time()
             R, I = self.retrieve_from_index(statements)
-            t4 = time.time()
             statements = [self.flip_or_keep(
                 r, i, s) for r, i, s in zip(R, I, statements)]
-            t5 = time.time()
-            print(
-                f"Time elapsed: retrieve: {t4 - t3}s, flip or keep: {t5 - t4}s")
+
         # Add flipped statements to the bank.
         self.add_to_bank(statements)
-        t6 = time.time()
-
-        print(f"Time elapsed: {t6- t0}s, ask_questions: {t2 - t1}s")
 
         # Return the answers for this batch
         return [a.get_answer() for a in statements]
