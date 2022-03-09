@@ -1,3 +1,4 @@
+import argparse
 from MemoryBank import MemoryBank
 from tqdm import tqdm
 from consistency import check_consistency, Implication
@@ -72,7 +73,7 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, constraints=None, batch_size=30):
+def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=30):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
@@ -92,8 +93,8 @@ def evaluate_model(mem_bank, data, constraints=None, batch_size=30):
         f1_scores += [f1_scr]
         accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
         accuracies += [accuracy]
-        writer.add_scalar(f"Accuracy/{mem_bank.name}", accuracy, i)
-        writer.add_scalar(f"F1 Score/{mem_bank.name}", f1_scr, i)
+        writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
+        writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
         if constraints is not None:
             c, _, _ = check_consistency(mem_bank, constraints)
             consistencies += [c]
@@ -148,7 +149,17 @@ def plot(f1_scores, accuracies, consistencies, config):
 
 
 if __name__ == "__main__":
-    data = utils.json_to_tuples(json.load(open("data/silver_facts.json")))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mode', nargs=1, default='full_dataset')
+    args = parser.parse_args()
+    mode = args.mode[0]
+    print(mode)
+    assert mode in ['full_dataset', 'val', 'test']
+    data_filename = "data/silver_facts.json"
+    if mode != 'full_dataset':
+        data_filename = f"data/silver_facts_{mode}.json"
+
+    data = utils.json_to_tuples(json.load(open(data_filename)))
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
@@ -156,7 +167,7 @@ if __name__ == "__main__":
     for config in [flip_95_relevant_config]:
         mem_bank = MemoryBank(config)
         f1_scores, accuracies, consistencies = evaluate_model(
-            mem_bank, data, constraints)
+            mem_bank, data, mode, constraints)
         save_data(config, f1_scores, accuracies, consistencies)
         plot(f1_scores, accuracies, consistencies, config)
 
