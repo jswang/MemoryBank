@@ -164,7 +164,7 @@ class MemoryBank:
 
         retrieved = []
         indices = []
-        for idx_list, score_list in zip(corresponding_indices, corresponding_scores):
+        for idx_list, score_list, sentence in zip(corresponding_indices, corresponding_scores, sentences):
             # Get items in order of most similar
             top_indices = np.argsort(score_list)[::-1]
             # Take top 30 most similar items
@@ -174,8 +174,9 @@ class MemoryBank:
             for meta_index in top_indices:
                 bank_idx = idx_list[meta_index]
                 e = self.mem_bank[bank_idx]
-                temp_retrieved.append(e)
-                temp_indices.append(bank_idx)
+                if e.get_entity() == sentence.get_entity():
+                    temp_retrieved.append(e)
+                    temp_indices.append(bank_idx)
             retrieved.append(temp_retrieved)
             indices.append(temp_indices)
 
