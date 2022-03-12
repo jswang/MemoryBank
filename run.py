@@ -104,7 +104,7 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
 
     writer.add_hparams({'sentence_similarity_threshold': mem_bank.threshold,
                         'default_flipped_confidence': mem_bank.default_flipped_confidence,
-                        'flip_premise_threshold': mem_bank.flip_premise_threshold}, {'hparam/average consistency': np.mean(np.array(consistencies))})
+                        'flip_premise_threshold': mem_bank.flip_premise_threshold}, {'hparam/average consistency': np.mean(np.array(consistencies)), 'hparam/median consistency': np.median(np.array(consistencies))})
     writer.flush()
     return f1_scores, accuracies, consistencies
 
