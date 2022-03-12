@@ -105,7 +105,7 @@ flip_95_no_neutral_topic_config = {
     # Device: defaults to whatever is available
     "device": device,
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": lambda: 0.95,
+    "confidence_fn": 0.95,
     # max number of relevant feedbacks
     'max_retreived': 10,
     "neutral": False
@@ -132,7 +132,7 @@ flip_95_no_neutral_relevant_config = {
     # Device: defaults to whatever is available
     "device": device,
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": lambda: 0.95,
+    "confidence_fn": 0.95,
     # max number of relevant feedbacks
     'max_retreived': 40,
     "neutral": False
