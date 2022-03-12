@@ -74,6 +74,8 @@ flip_95_relevant_config = {
     "device": device,
     # When flipping, the confidence to give to a flipped answer
     "confidence_fn": lambda: 0.95,
+    # max number of relevant feedbacks
+    'max_retreived': 30
 }
 
 # Baseline, just question answering
@@ -124,6 +126,8 @@ feedback_relevant_config = {
     "device": device,
     # When flipping, the confidence to give to a flipped answer
     "confidence_fn": lambda: 0.5,
+    # max number of relevant feedbacks
+    'max_retreived': 30
 }
 
 # Feedback

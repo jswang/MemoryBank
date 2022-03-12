@@ -50,6 +50,9 @@ class MemoryBank:
         if self.feedback == "topic":
             self.entities_dict = {k: [] for k in json.load(
                 open("data/silver_facts.json")).keys()}
+        elif self.feedback == 'relevant':
+            self.entities_dict = dict()
+            self.max_retreived = config['max_retreived']
         else:
             self.entities_dict = dict()
         self.n_feedback = 3
@@ -168,7 +171,6 @@ class MemoryBank:
             # Get items in order of most similar
             top_indices = np.argsort(score_list)[::-1]
             # Take top 30 most similar items
-            top_indices = top_indices[:30]
             temp_indices = []
             temp_retrieved = []
             for meta_index in top_indices:
@@ -177,6 +179,8 @@ class MemoryBank:
                 if e.get_entity() == sentence.get_entity():
                     temp_retrieved.append(e)
                     temp_indices.append(bank_idx)
+            temp_retrieved = temp_retrieved[:self.max_retreived]
+            temp_indices = temp_indices[:self.max_retreived]
             retrieved.append(temp_retrieved)
             indices.append(temp_indices)
 
