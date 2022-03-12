@@ -23,6 +23,7 @@ class MemoryBank:
         self.name = config["name"]
         self.default_flipped_confidence = config["default_flipped_confidence"]
         self.device = config["device"]
+        self.flip_premise_threshold = config["flip_premise_threshold"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
         self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
@@ -194,8 +195,7 @@ class MemoryBank:
         hypothesis_score = hypothesis.get_confidence()
         for (idx, p) in zip(premise_indices, premises):
             if p.confidence + self.flip_premise_threshold < hypothesis_score:
-                print(hypothesis.get_declarative_statement(), hypothesis.get_confidence(), self.mem_bank[idx].get_confidence(), "FLIPPING BELIEF ->",
-                      self.mem_bank[idx].get_declarative_statement())
+                print(f"flipping premise from: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
                 self.mem_bank[idx].flip(self.default_flipped_confidence)
                 mem_flips += 1
         return mem_flips
@@ -252,7 +252,7 @@ class MemoryBank:
                 # And flip the entailment premises
                 mem_flips += self.check_and_flip(entail_premise,
                                                  entail_premise_ind, hypothesis)
-                print(f'flipping the hypothesis {hypothesis.get_declarative_statement()}')
+                print(f'flipping hypothesis from {hypothesis.get_declarative_statement()}')
                 hypothesis.flip(self.default_flipped_confidence)
                 hyp_flip += 1
         # print(

@@ -74,13 +74,14 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, run_dir='', hparams=None, constraints=None, batch_size=30):
+def evaluate_model(mem_bank, data, mode, constraints=None, run_dir='', hparams=None,  batch_size=30):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
     """
     with tf.summary.create_file_writer(run_dir).as_default():
-        hp.hparams(hparams)
+        if hparams is not None:
+            hp.hparams(hparams)
         a_truth = torch.tensor([1 if a == "yes" else 0 for (_, _, a) in data])
         f1_scores = []
         accuracies = []
@@ -96,8 +97,8 @@ def evaluate_model(mem_bank, data, run_dir='', hparams=None, constraints=None, b
             f1_scores += [f1_scr]
             accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
             accuracies += [accuracy]
-            writer.add_scalar(f"Accuracy/{mem_bank.name}", accuracy, i)
-            writer.add_scalar(f"F1 Score/{mem_bank.name}", f1_scr, i)
+            writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
+            writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
             if constraints is not None:
                 c, _, _ = check_consistency(mem_bank, constraints)
                 consistencies += [c]
@@ -165,7 +166,7 @@ def hyperparameter_tune():
 
     # Setup
     data = utils.json_to_tuples(json.load(open("data/silver_facts.json")))
-    # TODO take this out
+    # TODO take this out, and fix your data to be the validation dataset
     data = data[0:350]
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
@@ -188,31 +189,31 @@ def hyperparameter_tune():
                         config['flip_premise_threshold'] = fpt
                         mem_bank = MemoryBank(config)
                         f1_scores, accuracies, consistencies = evaluate_model(
-                            mem_bank, data, constraints, hparams=hparams, run_dir=f"logs/hparam_tuning/run-{session_num}",  batch_size=batch_size)
+                            mem_bank, data, mode='val', constraints=constraints, hparams=hparams, run_dir=f"logs/hparam_tuning/run-{session_num}",  batch_size=batch_size)
                         save_data(config, f1_scores, accuracies, consistencies)
 
 if __name__ == "__main__":
-    hyperparameter_tune()
+    # hyperparameter_tune()
 
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-m', '--mode', default='full_dataset')
-    # parser.add_argument('-b', '--batch_size', type=int, default=100)
-    # args = parser.parse_args()
-    # mode = args.mode
-    # assert mode in ['full_dataset', 'val', 'test']
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mode', default='full_dataset')
+    parser.add_argument('-b', '--batch_size', type=int, default=100)
+    args = parser.parse_args()
+    mode = args.mode
+    assert mode in ['full_dataset', 'val', 'test']
 
-    # data_filename = "data/silver_facts.json"
-    # if mode != 'full_dataset':
-    #     data_filename = f"data/silver_facts_{mode}.json"
+    data_filename = "data/silver_facts.json"
+    if mode != 'full_dataset':
+        data_filename = f"data/silver_facts_{mode}.json"
 
-    # data = utils.json_to_tuples(json.load(open(data_filename)))
-    # constraints = json.load(open("data/constraints_v2.json"))
-    # constraints = [Implication(c) for c in constraints["links"]]
+    data = utils.json_to_tuples(json.load(open(data_filename)))
+    constraints = json.load(open("data/constraints_v2.json"))
+    constraints = [Implication(c) for c in constraints["links"]]
 
-    # # Evaluate baseline model
-    # for config in [flip_95_relevant_config]:
-    #     mem_bank = MemoryBank(config)
-    #     f1_scores, accuracies, consistencies = evaluate_model(
-    #         mem_bank, data, mode, constraints, batch_size=args.batch_size)
-    #     save_data(config, f1_scores, accuracies, consistencies)
-    #     plot(f1_scores, accuracies, consistencies, config)
+    # Evaluate baseline model
+    for config in [flip_95_relevant_config]:
+        mem_bank = MemoryBank(config)
+        f1_scores, accuracies, consistencies = evaluate_model(
+            mem_bank, data, mode, constraints, batch_size=args.batch_size)
+        save_data(config, f1_scores, accuracies, consistencies)
+        plot(f1_scores, accuracies, consistencies, config)

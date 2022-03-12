@@ -103,6 +103,7 @@ baseline_config = {
     "feedback_type": None,
     # Device: defaults to whatever is available
     "device": device,
+    "flip_premise_threshold": 0.25,
 }
 
 # Feedback
