@@ -1,5 +1,6 @@
 import argparse
 from MemoryBank import MemoryBank
+from SATMemoryBank import SATMemoryBank
 from tqdm import tqdm
 from consistency import check_consistency, Implication
 from MemoryEntry import MemoryEntry
@@ -73,7 +74,7 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=30):
+def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=10):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
@@ -82,10 +83,14 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=30):
     f1_scores = []
     accuracies = []
     consistencies = []
+    every_10 = [((i * len(data)) // 10) for i in range(1, 11)]
     for i in tqdm(range(0, len(data), batch_size)):
         end = i+min(batch_size, len(data))
         q_batch = data[i:end]
-        a_pred_batch = mem_bank.forward(q_batch)
+        if i in every_10 and isinstance(mem_bank, SATMemoryBank):
+            a_pred_batch = mem_bank.forward(q_batch, True)
+        else:
+            a_pred_batch = mem_bank.forward(q_batch)
         a_pred_batch = torch.tensor(
             [1 if a == "yes" else 0 for a in a_pred_batch])
         f1_scr = sklearn.metrics.f1_score(
@@ -163,8 +168,8 @@ if __name__ == "__main__":
     constraints = [Implication(c) for c in constraints["links"]]
 
     # Evaluate baseline model
-    for config in [flip_95_relevant_config]:
-        mem_bank = MemoryBank(config)
+    for config in [flip_95_no_neutral_relevant_config]:
+        mem_bank = SATMemoryBank(config)
         f1_scores, accuracies, consistencies = evaluate_model(
             mem_bank, data, mode, constraints)
         save_data(config, f1_scores, accuracies, consistencies)
