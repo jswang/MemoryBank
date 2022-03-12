@@ -21,8 +21,10 @@ class MemoryBank:
         Create a MemoryBank model based on configuration.
         """
         self.name = config["name"]
-        self.confidence_fn = config["confidence_fn"]
+        self.config=config
+        self.default_flipped_confidence = config["default_flipped_confidence"]
         self.device = config["device"]
+        self.flip_premise_threshold = config["flip_premise_threshold"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
         self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
@@ -185,19 +187,21 @@ class MemoryBank:
                 if e.get_entity() == sentence.get_entity():
                     temp_retrieved.append(e)
                     temp_indices.append(bank_idx)
-            temp_retrieved = temp_retrieved[:self.max_retreived]
-            temp_indices = temp_indices[:self.max_retreived]
+            if self.feedback == 'relevant':
+                temp_retrieved = temp_retrieved[:min(len(temp_retrieved), self.max_retreived)]
+                temp_indices = temp_indices[:min(len(temp_indices), self.max_retreived)]
             retrieved.append(temp_retrieved)
             indices.append(temp_indices)
 
         return retrieved, indices
 
-    def check_and_flip(self, premises, premise_indices, hypothesis, conf_thresh=0.25):
+    def check_and_flip(self, premises, premise_indices, hypothesis):
         """
         Go through the premises in the scope, check confidence levels and decide whether to flip
         """
         mem_flips = 0
         hypothesis_score = hypothesis.get_confidence()
+<<<<<<< HEAD
         for i, (idx, r) in enumerate(zip(premise_indices, premises)):
             if r.confidence + conf_thresh < hypothesis_score:
                 print(hypothesis.get_declarative_statement(), hypothesis.get_confidence(), self.mem_bank[idx].get_confidence(), "FLIPPING BELIEF ->",
@@ -206,6 +210,12 @@ class MemoryBank:
                 if self.feedback == "topic":
                     # add to entities dict
                     self.entities_dict[self.mem_bank[idx].get_entity()].update({self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
+=======
+        for (idx, p) in zip(premise_indices, premises):
+            if p.confidence + self.flip_premise_threshold < hypothesis_score:
+                self.mem_bank[idx].flip(self.default_flipped_confidence)
+                print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
+>>>>>>> b126199b8df3eb0257f109424d036bb0a4e49db0
                 mem_flips += 1
         return mem_flips
 
@@ -261,11 +271,9 @@ class MemoryBank:
                 # And flip the entailment premises
                 mem_flips += self.check_and_flip(entail_premise,
                                                  entail_premise_ind, hypothesis)
-                hypothesis.flip(self.confidence_fn)
-                print(f'flipping {hypothesis.get_declarative_statement()}')
+                hypothesis.flip(self.default_flipped_confidence)
+                print(f'flipping hypothesis to {hypothesis.get_declarative_statement()}')
                 hyp_flip += 1
-        # print(
-        #     f"n_entail: {n_entail}, n_contra: {n_contra}, mem_flips/possible: {mem_flips}/{possible_mem_flips}, hyp_flip: {hyp_flip}")
         return hypothesis
 
     def encode_sent(self, sentences: List[MemoryEntry]):

@@ -24,7 +24,7 @@ class MemoryEntry:
         return _declarative_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
 
     def get_nli_statement(self):
-        nli_s = _declarative_template_lookup("Bob", self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
+        nli_s = _declarative_template_lookup("It", self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
         nli_s = " ".join(nli_s.split(" ")[1:])
         return nli_s
 
@@ -57,16 +57,14 @@ class MemoryEntry:
     def get_confidence(self):
         return self.confidence
 
-    def flip(self, confidence_fn):
+    def flip(self, default_flipped_confidence):
         """
-        confidence_fn is a lambda function
-        that decides what the confidence score
-        should be for a flipped answer
+        Flip the answer, setting the confidence to default_flipped_confidence
         """
         assert self.answer is not None
         assert self.confidence is not None
         self.answer = 'yes' if self.answer == 'no' else 'no'
-        self.confidence = confidence_fn()
+        self.confidence = default_flipped_confidence
 
 
 if __name__ == '__main__':
