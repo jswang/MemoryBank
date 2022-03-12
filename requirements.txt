@@ -18,7 +18,7 @@ filelock==3.6.0
 huggingface-hub==0.4.0
 idna==3.3
 ipykernel==6.9.1
-ipython==8.0.1
+ipython
 jedi==0.18.1
 Jinja2==3.0.3
 joblib==1.1.0
@@ -31,7 +31,7 @@ murmurhash==1.0.6
 mypy-extensions==0.4.3
 nest-asyncio==1.5.4
 nltk==3.7
-numpy==1.22.2
+numpy
 packaging==21.3
 parso==0.8.3
 pathspec==0.9.0
@@ -54,7 +54,7 @@ regex==2022.1.18
 requests==2.27.1
 sacremoses==0.0.47
 scikit-learn==1.0.1
-scipy==1.8.0
+scipy
 sentence-transformers==2.2.0
 sentencepiece==0.1.96
 six==1.16.0
@@ -76,10 +76,11 @@ tqdm==4.62.3
 traitlets==5.1.1
 transformers==4.16.2
 typer==0.4.0
-typing_extensions==4.1.1
-urllib3==1.26.8
-wasabi==0.9.0
-wcwidth==0.2.5
-protobuf==3.19.4
+typing_extensions
+urllib3
+wasabi
+wcwidth
+protobuf
 sklearn
 matplotlib
+tensorboard
