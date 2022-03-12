@@ -215,3 +215,31 @@ feedback_topic_config = {
     # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
     "flip_premise_threshold": 0.25
 }
+
+
+# Roberta with flipping
+roberta_flip_config = {
+    "name": "Flip only",
+    # NLI model which outputs relation of premise and hypothesis
+    "nli_model": "roberta-large-mnli",
+    # Question answering model
+    "qa_model": "allenai/macaw-large",
+    # Sentence
+    "sentence_model": "paraphrase-MiniLM-L6-v2",
+    # Number of semantically similar constraints to compare against
+    "n_semantic": 3,
+    # Maximum input character length
+    "max_input_char_length": 256,
+    # Whether we flip answers to questions
+    "enable_flip": True,
+    # Whether we add feedback: ("revelant", "topic", None)
+    "feedback_type": None,
+    # Device: defaults to whatever is available
+    "device": device,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.75,
+    # When flipping, the confidence to give to a flipped answer
+    "default_flipped_confidence": 0.5,
+    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
+    "flip_premise_threshold": 0.1
+}
