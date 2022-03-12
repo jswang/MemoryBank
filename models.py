@@ -11,77 +11,20 @@ flip_config = {
     "qa_model": "allenai/macaw-large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
-    # Whether we flip answers to questions
-    "enable_flip": True,
-    # Whether we add feedback: ("revelant", "topic", None)
-    "feedback_type": None,
     # Device: defaults to whatever is available
     "device": device,
-    # Threshold used to lookup in faiss indexer
+
+    # Whether we flip answers to questions
+    "enable_flip": True,
+    # Threshold used to lookup in faiss indexer. Required for feedback and flipping
     "sentence_similarity_threshold": 0.75,
     # When flipping, the confidence to give to a flipped answer
     "default_flipped_confidence": 0.5,
     # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
-    "flip_premise_threshold": 0.25
-}
+    "flip_premise_threshold": 0.25,
 
-# Model tries to flip sentences, no feedback
-flip_95_config = {
-    "name": "Flip only",
-    # NLI model which outputs relation of premise and hypothesis
-    "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
-    # Question answering model
-    "qa_model": "allenai/macaw-large",
-    # Sentence
-    "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
-    # Whether we flip answers to questions
-    "enable_flip": True,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
-    # Device: defaults to whatever is available
-    "device": device,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.75,
-    # When flipping, the confidence to give to a flipped answer
-    "default_flipped_confidence": 0.95,
-    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
-    "flip_premise_threshold": 0.25
-}
-
-flip_95_relevant_config = {
-    "name": "Flip + Relevant Feedback (Flip Confidence 0.95, Confidence Thresh 0.25)",
-    # NLI model which outputs relation of premise and hypothesis
-    "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
-    # Question answering model
-    "qa_model": "allenai/macaw-large",
-    # Sentence
-    "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
-    # Whether we flip answers to questions
-    "enable_flip": True,
-    # Whether we add feedback: ("revelant", "topic", None)
-    "feedback_type": "relevant",
-    # Device: defaults to whatever is available
-    "device": device,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.75,
-    # When flipping, the confidence to give to a flipped answer
-    "default_flipped_confidence": 0.95,
-    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
-    "flip_premise_threshold": 0.25,
-    # max number of relevant feedbacks
-    'max_retreived': 10
 }
 
 flip_95_no_neutral_topic_config = {
@@ -92,20 +35,19 @@ flip_95_no_neutral_topic_config = {
     "qa_model": "allenai/macaw-large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.75,
-    # Whether we flip answers to questions
-    "enable_flip": True,
-    # Whether we add feedback: ("revelant", "topic", None)
-    "feedback_type": "topic",
     # Device: defaults to whatever is available
     "device": device,
+
+
+    # Whether we flip answers to questions
+    "enable_flip": True,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.75,
+
+    # Whether we add feedback: ("revelant", "topic", None)
+    "feedback_type": "topic",
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": 0.95,
+    "default_flipped_confidence": 0.95,
     # max number of relevant feedbacks
     'max_retreived': 10,
     "neutral": False
@@ -119,20 +61,18 @@ flip_95_no_neutral_relevant_config = {
     "qa_model": "allenai/macaw-large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
-    # Threshold used to lookup in faiss indexer
-    "sentence_similarity_threshold": 0.8,
-    # Whether we flip answers to questions
-    "enable_flip": True,
-    # Whether we add feedback: ("revelant", "topic", None)
-    "feedback_type": "relevant",
     # Device: defaults to whatever is available
     "device": device,
+
+    # Whether we flip answers to questions
+    "enable_flip": True,
+    # Threshold used to lookup in faiss indexer
+    "sentence_similarity_threshold": 0.8,
+
+    # Whether we add feedback: ("revelant", "topic", None)
+    "feedback_type": "relevant",
     # When flipping, the confidence to give to a flipped answer
-    "confidence_fn": 0.95,
+    "default_flipped_confidence": 0.95,
     # max number of relevant feedbacks
     'max_retreived': 40,
     "neutral": False
@@ -147,17 +87,13 @@ baseline_config = {
     "qa_model": "allenai/macaw-large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
+    # Device: defaults to whatever is available
+    "device": device,
+
     # Whether we flip answers to questions
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)
-    "feedback_type": None,
-    # Device: defaults to whatever is available
-    "device": device,
-    "flip_premise_threshold": 0.25,
+    "feedback_type": None
 }
 
 # Feedback
@@ -169,17 +105,15 @@ feedback_relevant_config = {
     "qa_model": "allenai/macaw-large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
-    # Whether we flip answers to questions
-    "enable_flip": False,
-    # Whether we add feedback: ("revelant", "topic", None)
-    "feedback_type": "relevant",
     # Device: defaults to whatever is available
     "device": device,
-    # Threshold used to lookup in faiss indexer
+
+    # Whether we flip answers to questions
+    "enable_flip": False,
+
+    # Whether we add feedback: ("revelant", "topic", None)
+    "feedback_type": "relevant",
+    # Threshold used to lookup in faiss indexer. Requires for feedback and flipping
     "sentence_similarity_threshold": 0.5,
     # When flipping, the confidence to give to a flipped answer
     "default_flipped_confidence": 0.5,
@@ -198,20 +132,44 @@ feedback_topic_config = {
     "qa_model": "allenai/macaw-large",
     # Sentence
     "sentence_model": "paraphrase-MiniLM-L6-v2",
-    # Number of semantically similar constraints to compare against
-    "n_semantic": 3,
-    # Maximum input character length
-    "max_input_char_length": 256,
+    # Device: defaults to whatever is available
+    "device": device,
+
     # Whether we flip answers to questions
     "enable_flip": False,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": "topic",
-    # Device: defaults to whatever is available
-    "device": device,
-    # Threshold used to lookup in faiss indexer
+    # Threshold used to lookup in faiss indexer. Requires for feedback and flipping
     "sentence_similarity_threshold": 0.6,
     # When flipping, the confidence to give to a flipped answer
     "default_flipped_confidence": 0.5,
     # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
     "flip_premise_threshold": 0.25
 }
+
+
+# Roberta with flipping
+roberta_flip_config = {
+    "name": "Roberta Flip only",
+    # NLI model which outputs relation of premise and hypothesis
+    "nli_model": "roberta-large-mnli",
+    # Question answering model
+    "qa_model": "allenai/macaw-large",
+    # Sentence
+    "sentence_model": "paraphrase-MiniLM-L6-v2",
+    # Device: defaults to whatever is available
+    "device": device,
+
+    # Whether we flip answers to questions
+    "enable_flip": True,
+    # Threshold used to lookup in faiss indexer. Requires for feedback and flipping
+    "sentence_similarity_threshold": 0.75,
+    # When flipping, the confidence to give to a flipped answer
+    "default_flipped_confidence": 0.5,
+    # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
+    "flip_premise_threshold": 0.1,
+
+     # Whether we add feedback: ("revelant", "topic", None)
+    "feedback_type": None,
+}
+

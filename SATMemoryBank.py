@@ -22,7 +22,6 @@ class SATMemoryBank:
         Create a MemoryBank model based on configuration.
         """
         self.name = config["name"]
-        self.confidence_fn = config["confidence_fn"]
         self.device = config["device"]
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
@@ -201,7 +200,7 @@ class SATMemoryBank:
         for idx in premise_indices:
             print("Flipping Belief old:", self.mem_bank[idx].get_declarative_statement(),
                   self.mem_bank[idx].get_confidence())
-            self.mem_bank[idx].flip(self.confidence_fn)
+            self.mem_bank[idx].flip(self.config["default_flipped_confidence"])
             if self.feedback == "topic":
                 # add to entities dict
                 self.entities_dict[self.mem_bank[idx].get_entity()].update({self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
