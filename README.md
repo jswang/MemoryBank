@@ -14,14 +14,14 @@ source env/bin/activate
 pip install -r requirements.txt
 ```
 
-Sample test of current MemoryBank implementation:
+Run Memory bank on validation dataset
 ```
-python MemoryBank.py
+python run.py --mode 'val'
 ```
 
-Sample test of current util functions translate_text and translate_conllu:
+Run Memory bank on test dataset
 ```
-python utils.py
+python run.py --mode 'test'
 ```
 
 To visualize results, run:
