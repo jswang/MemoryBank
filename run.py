@@ -158,16 +158,14 @@ def hyperparameter_tune():
     # Parameters
     HP_SENTENCE_SIMILARITY = hp.HParam(
         'sentence_similarity_threshold', hp.RealInterval(0.5, 0.99))
-    HP_BATCH_SIZE = hp.HParam('batch_size', hp.Discrete([5, 35]))
+    HP_BATCH_SIZE = hp.HParam('batch_size', hp.Discrete([75, 100]))
     HP_CONFIDENCE = hp.HParam(
         'default_flipped_confidence', hp.RealInterval(0.5, 0.99))
     HP_PREMISE_THRESHOLD = hp.HParam(
         'flip_premise_threshold', hp.RealInterval(0.01, 0.5))
 
     # Setup
-    data = utils.json_to_tuples(json.load(open("data/silver_facts.json")))
-    # TODO take this out, and fix your data to be the validation dataset
-    data = data[0:350]
+    data = utils.json_to_tuples(json.load(open("data/silver_facts_val.json")))
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
@@ -191,29 +189,33 @@ def hyperparameter_tune():
                         f1_scores, accuracies, consistencies = evaluate_model(
                             mem_bank, data, mode='val', constraints=constraints, hparams=hparams, run_dir=f"logs/hparam_tuning/run-{session_num}",  batch_size=batch_size)
                         save_data(config, f1_scores, accuracies, consistencies)
+                        session_num+=1
 
 if __name__ == "__main__":
-    # hyperparameter_tune()
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mode', default='full_dataset')
     parser.add_argument('-b', '--batch_size', type=int, default=100)
+    parser.add_argument('-t', '--tune', action='store_true')
     args = parser.parse_args()
-    mode = args.mode
-    assert mode in ['full_dataset', 'val', 'test']
 
-    data_filename = "data/silver_facts.json"
-    if mode != 'full_dataset':
-        data_filename = f"data/silver_facts_{mode}.json"
+    if args.tune:
+        hyperparameter_tune()
+    else:
+        mode = args.mode
+        assert mode in ['full_dataset', 'val', 'test']
 
-    data = utils.json_to_tuples(json.load(open(data_filename)))
-    constraints = json.load(open("data/constraints_v2.json"))
-    constraints = [Implication(c) for c in constraints["links"]]
+        data_filename = "data/silver_facts.json"
+        if mode != 'full_dataset':
+            data_filename = f"data/silver_facts_{mode}.json"
 
-    # Evaluate baseline model
-    for config in [flip_95_relevant_config]:
-        mem_bank = MemoryBank(config)
-        f1_scores, accuracies, consistencies = evaluate_model(
-            mem_bank, data, mode, constraints, batch_size=args.batch_size)
-        save_data(config, f1_scores, accuracies, consistencies)
-        plot(f1_scores, accuracies, consistencies, config)
+        data = utils.json_to_tuples(json.load(open(data_filename)))
+        constraints = json.load(open("data/constraints_v2.json"))
+        constraints = [Implication(c) for c in constraints["links"]]
+
+        # Evaluate baseline model
+        for config in [flip_95_relevant_config]:
+            mem_bank = MemoryBank(config)
+            f1_scores, accuracies, consistencies = evaluate_model(
+                mem_bank, data, mode, constraints, batch_size=args.batch_size)
+            save_data(config, f1_scores, accuracies, consistencies)
+            plot(f1_scores, accuracies, consistencies, config)
