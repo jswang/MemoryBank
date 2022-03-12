@@ -200,7 +200,7 @@ if __name__ == "__main__":
         constraints = [Implication(c) for c in constraints["links"]]
 
         # Evaluate baseline model
-        for config in [flip_95_relevant_config]:
+        for config in [baseline_config, flip_95_relevant_config]:
             mem_bank = MemoryBank(config)
             f1_scores, accuracies, consistencies = evaluate_model(
                 mem_bank, data, mode, constraints, batch_size=args.batch_size)
