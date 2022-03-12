@@ -1,5 +1,6 @@
 import argparse
 from MemoryBank import MemoryBank
+from SATMemoryBank import SATMemoryBank
 from tqdm import tqdm
 from consistency import check_consistency, Implication
 from MemoryEntry import MemoryEntry
@@ -84,10 +85,17 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
     f1_scores = []
     accuracies = []
     consistencies = []
+    range_10s = list(range(0, len(data), batch_size))
+    every_10_inds = [i * (len(range_10s) // 10) for i in range(1, 11)]
+    every_10 = [range_10s[i] for i in every_10_inds]
+
     for i in tqdm(range(0, len(data), batch_size)):
         end = i+min(batch_size, len(data))
         q_batch = data[i:end]
-        a_pred_batch = mem_bank.forward(q_batch)
+        if i in every_10 and isinstance(mem_bank, SATMemoryBank):
+            a_pred_batch = mem_bank.forward(q_batch, True)
+        else:
+            a_pred_batch = mem_bank.forward(q_batch)
         a_pred_batch = torch.tensor(
             [1 if a == "yes" else 0 for a in a_pred_batch])
         f1_scr = sklearn.metrics.f1_score(

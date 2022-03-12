@@ -5,6 +5,7 @@ import torch
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
+from z3 import *
 
 import models
 from models import baseline_config
@@ -15,14 +16,14 @@ from MemoryEntry import MemoryEntry
 logging.set_verbosity_error()
 
 
-class MemoryBank:
+class SATMemoryBank:
     def __init__(self, config=baseline_config):
         """
         Create a MemoryBank model based on configuration.
         """
         self.name = config["name"]
+        self.confidence_fn = config["confidence_fn"]
         self.device = config["device"]
-        self.config=config
 
         # Sentence tokenizer and NLI model which outputs relation of premise and hypothesis
         self.nli_tokenizer = AutoTokenizer.from_pretrained(config["nli_model"])
@@ -39,16 +40,28 @@ class MemoryBank:
         # Plaintext beliefs: question answer pairs
         self.mem_bank = []
 
+        # Similarity threshold for index lookup
+        self.threshold = config["sentence_similarity_threshold"]
+        # Maximum number of characters in input sequence
+        self.max_length = config["max_input_char_length"]
+        # Whether we use the flipping functionality
+        self.enable_flip = config["enable_flip"]
         # The type of feedback we will be creating
-        if config["feedback_type"] == "topic":
-            self.entities_dict = {k: [] for k in json.load(
+        self.feedback = config["feedback_type"]
+        if self.feedback == "topic":
+            self.entities_dict = {k: {} for k in json.load(
                 open("data/silver_facts.json")).keys()}
-        elif config["feedback_type"] == 'relevant':
+        elif self.feedback == 'relevant':
             self.entities_dict = dict()
-            assert "max_retrieved" in config, "Missing max retrieval number in config for relevant feedback"
+            self.max_retreived = config['max_retreived']
         else:
             self.entities_dict = dict()
         self.n_feedback = 3
+
+        # Z3 MaxSAT solver
+        self.solver = Optimize()
+        self.lmbda = 2
+        self.records = dict()
 
         # Model that goes from sentence to sentence representation
         self.sent_model = SentenceTransformer(config["sentence_model"])
@@ -80,12 +93,13 @@ class MemoryBank:
         """
         Given a list of questions, retrieve semantically similar sentences for context
         """
-        if self.config["feedback_type"] == "relevant":
+        if self.feedback == "relevant":
             R, I = self.retrieve_from_index(questions)
             contexts = []
             for r in R:
                 contexts.append(
                     " ".join([e.get_declarative_statement() for e in r[:self.n_feedback]]))
+            # contexts = [e.get_declarative_statement() for r in R for e in r]
         else:
             # List of strings, each string corresponding to self.n_feedback relevant beliefs
             contexts = self.find_same_topic(questions)
@@ -107,12 +121,12 @@ class MemoryBank:
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no ; $question$ = {q}" for q in questions]
         # Tokenize questions
         inputs = self.qa_tokenizer(
-            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.config["max_input_char_length"])
+            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.max_length)
         input_ids = inputs.input_ids.to(self.device)
         input_attention_mask = inputs.attention_mask.to(self.device)
         # Ask the questions, include a label to gather confidence
         labels = self.qa_tokenizer(
-            "$answer$ = yes", return_tensors="pt", max_length=self.config["max_input_char_length"]).input_ids.to(self.device)
+            "$answer$ = yes", return_tensors="pt", max_length=self.max_length).input_ids.to(self.device)
         labels = torch.tile(labels, (len(questions), 1))
         # Calculate probability of yes answer
         # model forward pass docs: https://huggingface.co/docs/transformers/v4.17.0/en/model_doc/t5#transformers.T5ForConditionalGeneration
@@ -151,7 +165,7 @@ class MemoryBank:
         s_embed = s_embed.cpu().detach().numpy().astype("float32")
         s_embed /= np.expand_dims(np.linalg.norm(s_embed, axis=-1), 1)
         lims, D, I = self.index.range_search(
-            x=s_embed, thresh=self.config["sentence_similarity_threshold"])
+            x=s_embed, thresh=self.threshold)
 
         corresponding_indices = [I[lims[i]:lims[i+1]]
                                  for i in range(len(lims) - 1)]
@@ -172,28 +186,29 @@ class MemoryBank:
                 if e.get_entity() == sentence.get_entity():
                     temp_retrieved.append(e)
                     temp_indices.append(bank_idx)
-            if self.config["feedback_type"] == 'relevant':
-                temp_retrieved = temp_retrieved[:min(len(temp_retrieved), self.config["max_retrieved"])]
-                temp_indices = temp_indices[:min(len(temp_indices), self.config["max_retrieved"])]
+            temp_retrieved = temp_retrieved[:self.max_retreived]
+            temp_indices = temp_indices[:self.max_retreived]
             retrieved.append(temp_retrieved)
             indices.append(temp_indices)
 
         return retrieved, indices
 
-    def check_and_flip(self, premises, premise_indices, hypothesis):
+    def check_and_flip(self, premise_indices):
         """
         Go through the premises in the scope, check confidence levels and decide whether to flip
         """
         mem_flips = 0
-        hypothesis_score = hypothesis.get_confidence()
-        for (idx, p) in zip(premise_indices, premises):
-            if p.confidence + self.config["flip_premise_threshold"] < hypothesis_score:
-                self.mem_bank[idx].flip(self.config["default_flipped_confidence"])
-                print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
-                mem_flips += 1
+        for idx in premise_indices:
+            print("Flipping Belief old:", self.mem_bank[idx].get_declarative_statement(),
+                  self.mem_bank[idx].get_confidence())
+            self.mem_bank[idx].flip(self.confidence_fn)
+            if self.feedback == "topic":
+                # add to entities dict
+                self.entities_dict[self.mem_bank[idx].get_entity()].update({self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
+            mem_flips += 1
         return mem_flips
 
-    def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry) -> MemoryEntry:
+    def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry, hypothesis_ind) -> MemoryEntry:
         """
         Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
         """
@@ -203,52 +218,42 @@ class MemoryBank:
         probs = np.array([self.get_relation(
             p.get_nli_statement(), hypothesis.get_nli_statement()) for p in premises])
 
-        n_entail = np.sum(probs[:, 0])
-        n_contra = np.sum(probs[:, 2])
+        for i in range(len(premises)):
+            if str(premises_indices[i]) not in self.records:
+                self.records.update({str(premises_indices[i]): []})
+            if probs[i, 0] > probs[i, 1]:
+                self.records[str(premises_indices[i])].append((hypothesis_ind, "entail", float(probs[i, 0])))
+            elif probs[i, 1] > probs[i, 0]:
+                self.records[str(premises_indices[i])].append((hypothesis_ind, "contradict", float(probs[i, 1])))
 
-        mem_flips = 0
-        possible_mem_flips = len(premises)
-        hyp_flip = 0
-
-        # if we have more contradictions than we do entailments, we should flip
-        # either the hypothesis or one or more premises
-        if n_entail < n_contra:
-            hypothesis_score = hypothesis.get_confidence()
-            contra_premise_ind = []
-            contra_premise = []
-            entail_premise_ind = []
-            entail_premise = []
-            for i in range(len(premises)):
-                if probs[i, 0] > probs[i, 2]:
-                    entail_premise_ind.append(premises_indices[i])
-                    entail_premise.append(premises[i])
-                elif probs[i, 2] > probs[i, 0]:
-                    contra_premise_ind.append(premises_indices[i])
-                    contra_premise.append(premises[i])
-            premise_scores = np.array([r.get_confidence()
-                                      for r in contra_premise])
-
-            hypothesis_votes = np.sum(
-                hypothesis_score > premise_scores)
-            premise_votes = np.sum(hypothesis_score < premise_scores)
-
-            # if our QA model is more confident about the hypothesis,
-            # the hypothesis is good and we should flip some premises
-            if hypothesis_votes > premise_votes:
-                # flip premises whose QA scores are lower than hypothesis score
-                mem_flips += self.check_and_flip(contra_premise,
-                                                 contra_premise_ind, hypothesis)
-
-            # if our QA model is more confident about premises,
-            # the hypothesis isn't good and we should flip it
-            else:
-                # And flip the entailment premises
-                mem_flips += self.check_and_flip(entail_premise,
-                                                 entail_premise_ind, hypothesis)
-                hypothesis.flip(self.config["default_flipped_confidence"])
-                print(f'flipping hypothesis to {hypothesis.get_declarative_statement()}')
-                hyp_flip += 1
         return hypothesis
+
+    def solve_and_flip(self):
+        self.solver = Optimize()
+        for i in range(len(self.mem_bank)):
+            # Add all the beliefs
+            # print(self.mem_bank[i].get_confidence())
+            # print(self.mem_bank[i])
+            self.solver.add_soft(Bool(str(i)), self.mem_bank[i].get_confidence() * self.lmbda)
+        for k in self.records:
+            # Add the relations
+            relations = self.records[k]
+            for hyp_ind, rel, weight in relations:
+                if rel == "entail":
+                    self.solver.add_soft(Or(Not(Bool(k)), Bool(str(hyp_ind))), weight)
+                else:
+                    self.solver.add_soft(And(Bool(k), Not(Bool(str(hyp_ind)))), weight)
+        self.solver.check()
+        opt_model = self.solver.model()
+        inds_to_flip = []
+        for i in range(len(self.mem_bank)):
+            new_exp = Bool(str(i))
+            if not bool(opt_model[new_exp]):
+                inds_to_flip.append(i)
+                if str(i) in self.records:
+                    self.records.pop(str(i))
+        self.check_and_flip(inds_to_flip)
+        self.solver = Optimize()
 
     def encode_sent(self, sentences: List[MemoryEntry]):
         return self.sent_model.encode([s.get_pos_statement() for s in sentences], device=self.device, convert_to_tensor=True)
@@ -278,7 +283,7 @@ class MemoryBank:
         Given premise and hypothesis, output entailment/neutral/contradiction
         """
         tokenized_input_seq_pair = self.nli_tokenizer.encode_plus(premise, hypothesis,
-                                                                  max_length=self.config["max_input_char_length"],
+                                                                  max_length=self.max_length,
                                                                   return_token_type_ids=True, truncation=True)
         input_ids = torch.Tensor(
             tokenized_input_seq_pair['input_ids']).long().unsqueeze(0).to(self.device)
@@ -292,13 +297,13 @@ class MemoryBank:
                                      attention_mask=attention_mask,
                                      token_type_ids=token_type_ids,
                                      labels=None)
-        if not self.neutral and torch.argmax(outputs.logits, dim=1) == 1:
-            return np.zeros(3)
-        predicted_probability = torch.softmax(
-            outputs.logits, dim=-1).squeeze().detach().cpu().numpy()
+        if torch.argmax(outputs.logits, dim=1) == 1:
+            return np.zeros(2)
+        predicted_probability = torch.softmax(torch.cat((outputs.logits[:, 0], outputs.logits[:, 2])),
+                                              dim=-1).detach().cpu().numpy()
         return predicted_probability
 
-    def forward(self, inputs: List[Tuple[str, str, str]]):
+    def forward(self, inputs: List[Tuple[str, str, str]], run_solver=False):
         """
         Forward pass of the model on a batch of triplets
         Arguments:
@@ -309,7 +314,7 @@ class MemoryBank:
         context = []
 
         # Generate context if necessary
-        if self.config["feedback_type"] is not None:
+        if self.feedback is not None:
             context = self.generate_feedback(questions)
         # Ask your question
         answers, probs = self.ask_questions(
@@ -318,15 +323,14 @@ class MemoryBank:
             questions[i].set_answer(answers[i])
             questions[i].set_confidence(probs[i])
         statements = questions
-
-        # Check against existing constraints to flip as necessary
-        if self.config["enable_flip"]:
-            R, I = self.retrieve_from_index(statements)
-            statements = [self.flip_or_keep(
-                r, i, s) for r, i, s in zip(R, I, statements)]
-
-        # Add flipped statements to the bank.
         self.add_to_bank(statements)
 
+        # Check against existing constraints to flip as necessary
+        if self.enable_flip:
+            R, I = self.retrieve_from_index(statements)
+            statements = [self.flip_or_keep(
+                r, i, s, h_id + len(self.mem_bank) - len(statements)) for h_id, (r, i, s) in enumerate(zip(R, I, statements))]
+            if run_solver:
+                self.solve_and_flip()
         # Return the answers for this batch
-        return [a.get_answer() for a in statements]
+        return [a.get_answer() for a in self.mem_bank[len(self.mem_bank) - len(statements):]]
