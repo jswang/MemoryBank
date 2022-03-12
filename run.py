@@ -102,9 +102,9 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
             consistencies += [c]
             writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
 
-    writer.add_hparams({'sentence_similarity_threshold': mem_bank.threshold,
-                        'default_flipped_confidence': mem_bank.default_flipped_confidence,
-                        'flip_premise_threshold': mem_bank.flip_premise_threshold}, {'hparam/average consistency': np.mean(np.array(consistencies)), 'hparam/median consistency': np.median(np.array(consistencies))})
+    writer.add_hparams({'sentence_similarity_threshold': mem_bank.config["sentence_similarity_threshold"],
+                        'default_flipped_confidence': mem_bank.config["default_flipped_confidence"],
+                        'flip_premise_threshold': mem_bank.config["flip_premise_threshold"]}, {'hparam/average consistency': np.mean(np.array(consistencies)), 'hparam/median consistency': np.median(np.array(consistencies))})
     writer.flush()
     return f1_scores, accuracies, consistencies
 
@@ -200,7 +200,7 @@ if __name__ == "__main__":
         constraints = [Implication(c) for c in constraints["links"]]
 
         # Evaluate baseline model
-        for config in [baseline_config, flip_95_relevant_config]:
+        for config in [roberta_flip_config]:
             mem_bank = MemoryBank(config)
             f1_scores, accuracies, consistencies = evaluate_model(
                 mem_bank, data, mode, constraints, batch_size=args.batch_size)
