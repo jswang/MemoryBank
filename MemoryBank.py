@@ -14,6 +14,8 @@ from MemoryEntry import MemoryEntry
 # only log errors
 logging.set_verbosity_error()
 
+# constants
+MAX_INPUT_CHAR_LENGTH = 256
 
 class MemoryBank:
     def __init__(self, config=baseline_config):
@@ -107,12 +109,12 @@ class MemoryBank:
                 f"$answer$ ; $mcoptions$ = (A) yes (B) no ; $question$ = {q}" for q in questions]
         # Tokenize questions
         inputs = self.qa_tokenizer(
-            input_string, padding=True, truncation=True, return_tensors="pt", max_length=self.config["max_input_char_length"])
+            input_string, padding=True, truncation=True, return_tensors="pt", max_length=MAX_INPUT_CHAR_LENGTH)
         input_ids = inputs.input_ids.to(self.device)
         input_attention_mask = inputs.attention_mask.to(self.device)
         # Ask the questions, include a label to gather confidence
         labels = self.qa_tokenizer(
-            "$answer$ = yes", return_tensors="pt", max_length=self.config["max_input_char_length"]).input_ids.to(self.device)
+            "$answer$ = yes", return_tensors="pt", max_length=MAX_INPUT_CHAR_LENGTH).input_ids.to(self.device)
         labels = torch.tile(labels, (len(questions), 1))
         # Calculate probability of yes answer
         # model forward pass docs: https://huggingface.co/docs/transformers/v4.17.0/en/model_doc/t5#transformers.T5ForConditionalGeneration
@@ -278,7 +280,7 @@ class MemoryBank:
         Given premise and hypothesis, output entailment/neutral/contradiction
         """
         tokenized_input_seq_pair = self.nli_tokenizer.encode_plus(premise, hypothesis,
-                                                                  max_length=self.config["max_input_char_length"],
+                                                                  max_length=MAX_INPUT_CHAR_LENGTH,
                                                                   return_token_type_ids=True, truncation=True)
         input_ids = torch.Tensor(
             tokenized_input_seq_pair['input_ids']).long().unsqueeze(0).to(self.device)
@@ -296,6 +298,8 @@ class MemoryBank:
             return np.zeros(3)
         predicted_probability = torch.softmax(
             outputs.logits, dim=-1).squeeze().detach().cpu().numpy()
+        # TODO roberta-large-mnli returns (contradiction, neutral, entailment)
+        # whereas ynli returns (entailment, neutral, contradiction)
         return predicted_probability
 
     def forward(self, inputs: List[Tuple[str, str, str]]):
