@@ -21,6 +21,7 @@ class MemoryBank:
         Create a MemoryBank model based on configuration.
         """
         self.name = config["name"]
+        self.config=config
         self.default_flipped_confidence = config["default_flipped_confidence"]
         self.device = config["device"]
         self.flip_premise_threshold = config["flip_premise_threshold"]
@@ -180,8 +181,9 @@ class MemoryBank:
                 if e.get_entity() == sentence.get_entity():
                     temp_retrieved.append(e)
                     temp_indices.append(bank_idx)
-            temp_retrieved = temp_retrieved[:self.max_retreived]
-            temp_indices = temp_indices[:self.max_retreived]
+            if self.feedback == 'relevant':
+                temp_retrieved = temp_retrieved[:min(len(temp_retrieved), self.max_retreived)]
+                temp_indices = temp_indices[:min(len(temp_indices), self.max_retreived)]
             retrieved.append(temp_retrieved)
             indices.append(temp_indices)
 
@@ -195,8 +197,8 @@ class MemoryBank:
         hypothesis_score = hypothesis.get_confidence()
         for (idx, p) in zip(premise_indices, premises):
             if p.confidence + self.flip_premise_threshold < hypothesis_score:
-                print(f"flipping premise from: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
                 self.mem_bank[idx].flip(self.default_flipped_confidence)
+                print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
                 mem_flips += 1
         return mem_flips
 
@@ -252,11 +254,9 @@ class MemoryBank:
                 # And flip the entailment premises
                 mem_flips += self.check_and_flip(entail_premise,
                                                  entail_premise_ind, hypothesis)
-                print(f'flipping hypothesis from {hypothesis.get_declarative_statement()}')
                 hypothesis.flip(self.default_flipped_confidence)
+                print(f'flipping hypothesis to {hypothesis.get_declarative_statement()}')
                 hyp_flip += 1
-        # print(
-        #     f"n_entail: {n_entail}, n_contra: {n_contra}, mem_flips/possible: {mem_flips}/{possible_mem_flips}, hyp_flip: {hyp_flip}")
         return hypothesis
 
     def encode_sent(self, sentences: List[MemoryEntry]):

@@ -74,39 +74,39 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, mode, constraints=None, run_dir='', hparams=None,  batch_size=30):
+def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
     """
-    with tf.summary.create_file_writer(run_dir).as_default():
-        if hparams is not None:
-            hp.hparams(hparams)
-        a_truth = torch.tensor([1 if a == "yes" else 0 for (_, _, a) in data])
-        f1_scores = []
-        accuracies = []
-        consistencies = []
-        for i in tqdm(range(0, len(data), batch_size)):
-            end = i+min(batch_size, len(data))
-            q_batch = data[i:end]
-            a_pred_batch = mem_bank.forward(q_batch)
-            a_pred_batch = torch.tensor(
-                [1 if a == "yes" else 0 for a in a_pred_batch])
-            f1_scr = sklearn.metrics.f1_score(
-                a_truth[i:end], a_pred_batch, zero_division=0)
-            f1_scores += [f1_scr]
-            accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
-            accuracies += [accuracy]
-            writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
-            writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
-            if constraints is not None:
-                c, _, _ = check_consistency(mem_bank, constraints)
-                consistencies += [c]
-                writer.add_scalar(f"Consistency/{mem_bank.name}", c, i)
-        writer.flush()
-        if constraints is not None and hparams is not None:
-            tf.summary.scalar('confidence', c, step=1)
-        return f1_scores, accuracies, consistencies
+
+    a_truth = torch.tensor([1 if a == "yes" else 0 for (_, _, a) in data])
+    f1_scores = []
+    accuracies = []
+    consistencies = []
+    for i in tqdm(range(0, len(data), batch_size)):
+        end = i+min(batch_size, len(data))
+        q_batch = data[i:end]
+        a_pred_batch = mem_bank.forward(q_batch)
+        a_pred_batch = torch.tensor(
+            [1 if a == "yes" else 0 for a in a_pred_batch])
+        f1_scr = sklearn.metrics.f1_score(
+            a_truth[i:end], a_pred_batch, zero_division=0)
+        accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
+        f1_scores += [f1_scr]
+        accuracies += [accuracy]
+        writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
+        writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
+        if constraints is not None:
+            c, _, _ = check_consistency(mem_bank, constraints)
+            consistencies += [c]
+            writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
+
+    writer.add_hparams({'sentence_similarity_threshold': mem_bank.threshold,
+                        'default_flipped_confidence': mem_bank.default_flipped_confidence,
+                        'flip_premise_threshold': mem_bank.flip_premise_threshold}, {'hparam/average consistency': np.mean(np.array(consistencies))})
+    writer.flush()
+    return f1_scores, accuracies, consistencies
 
 
 def save_data(config, f1_scores, accuracies, consistencies):
@@ -155,41 +155,28 @@ def plot(f1_scores, accuracies, consistencies, config):
 
 
 def hyperparameter_tune():
-    # Parameters
-    HP_SENTENCE_SIMILARITY = hp.HParam(
-        'sentence_similarity_threshold', hp.RealInterval(0.5, 0.99))
-    HP_BATCH_SIZE = hp.HParam('batch_size', hp.Discrete([75, 100]))
-    HP_CONFIDENCE = hp.HParam(
-        'default_flipped_confidence', hp.RealInterval(0.5, 0.99))
+
     HP_PREMISE_THRESHOLD = hp.HParam(
-        'flip_premise_threshold', hp.RealInterval(0.01, 0.5))
+        'flip_premise_threshold', hp.RealInterval(0.1, 0.5))
+
 
     # Setup
     data = utils.json_to_tuples(json.load(open("data/silver_facts_val.json")))
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
-    with tf.summary.create_file_writer('logs/hparam_tuning').as_default():
-        session_num = 0
-        for batch_size in HP_BATCH_SIZE.domain.values:
-            for sst in (HP_SENTENCE_SIMILARITY.domain.min_value, HP_SENTENCE_SIMILARITY.domain.max_value):
-                for dfc in (HP_CONFIDENCE.domain.min_value, HP_CONFIDENCE.domain.max_value):
-                    for fpt in (HP_PREMISE_THRESHOLD.domain.min_value, HP_PREMISE_THRESHOLD.domain.max_value):
-                        hparams = {
-                            HP_SENTENCE_SIMILARITY: sst,
-                            HP_CONFIDENCE: dfc,
-                            HP_PREMISE_THRESHOLD: fpt,
-                            HP_BATCH_SIZE: batch_size,
-                        }
-                        config = baseline_config.copy()
-                        config['sentence_similarity_threshold'] = sst
-                        config['default_flipped_confidence'] = dfc
-                        config['flip_premise_threshold'] = fpt
-                        mem_bank = MemoryBank(config)
-                        f1_scores, accuracies, consistencies = evaluate_model(
-                            mem_bank, data, mode='val', constraints=constraints, hparams=hparams, run_dir=f"logs/hparam_tuning/run-{session_num}",  batch_size=batch_size)
-                        save_data(config, f1_scores, accuracies, consistencies)
-                        session_num+=1
+    for batch_size in [75, 100]:
+        for sentence_similarity_threshold in np.arange(0.5, 1.0, .05):
+            for confidence in np.arange(0.5, 1.0, 0.1):
+                for flip_premise_threshold in np.arange(0.1, 0.6, 0.1):
+                    config = flip_config.copy()
+                    config['sentence_similarity_threshold'] = sentence_similarity_threshold
+                    config['default_flipped_confidence'] = confidence
+                    config['flip_premise_threshold'] = flip_premise_threshold
+                    mem_bank = MemoryBank(config)
+                    f1_scores, accuracies, consistencies = evaluate_model(
+                        mem_bank, data, mode='val', constraints=constraints, batch_size=batch_size)
+                    save_data(config, f1_scores, accuracies, consistencies)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
