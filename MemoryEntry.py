@@ -24,7 +24,7 @@ class MemoryEntry:
         return _declarative_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
 
     def get_nli_statement(self):
-        nli_s = _declarative_template_lookup("X", self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
+        nli_s = _declarative_template_lookup("It", self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
         nli_s = " ".join(nli_s.split(" ")[1:])
         return nli_s
 

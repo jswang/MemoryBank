@@ -78,6 +78,7 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=30):
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
     """
+    print(f"Evaluating model with batch_size: {batch_size}")
     a_truth = torch.tensor([1 if a == "yes" else 0 for (_, _, a) in data])
     f1_scores = []
     accuracies = []
@@ -150,10 +151,12 @@ def plot(f1_scores, accuracies, consistencies, config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', nargs=1, default='full_dataset')
+    parser.add_argument('-m', '--mode', default='full_dataset')
+    parser.add_argument('-b', '--batch_size', type=int, default=100)
     args = parser.parse_args()
-    mode = args.mode[0]
+    mode = args.mode
     assert mode in ['full_dataset', 'val', 'test']
+
     data_filename = "data/silver_facts.json"
     if mode != 'full_dataset':
         data_filename = f"data/silver_facts_{mode}.json"
@@ -166,7 +169,7 @@ if __name__ == "__main__":
     for config in [flip_95_relevant_config]:
         mem_bank = MemoryBank(config)
         f1_scores, accuracies, consistencies = evaluate_model(
-            mem_bank, data, mode, constraints)
+            mem_bank, data, mode, constraints, batch_size=args.batch_size)
         save_data(config, f1_scores, accuracies, consistencies)
         plot(f1_scores, accuracies, consistencies, config)
 

@@ -11,3 +11,5 @@ silver_facts.json
 __pycache__/
 .vscode*
 .DS_Store
+runs/
+figures/
