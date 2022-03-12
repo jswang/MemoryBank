@@ -201,21 +201,10 @@ class MemoryBank:
         """
         mem_flips = 0
         hypothesis_score = hypothesis.get_confidence()
-<<<<<<< HEAD
-        for i, (idx, r) in enumerate(zip(premise_indices, premises)):
-            if r.confidence + conf_thresh < hypothesis_score:
-                print(hypothesis.get_declarative_statement(), hypothesis.get_confidence(), self.mem_bank[idx].get_confidence(), "FLIPPING BELIEF ->",
-                      self.mem_bank[idx].get_declarative_statement())
-                self.mem_bank[idx].flip(self.confidence_fn)
-                if self.feedback == "topic":
-                    # add to entities dict
-                    self.entities_dict[self.mem_bank[idx].get_entity()].update({self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
-=======
         for (idx, p) in zip(premise_indices, premises):
             if p.confidence + self.flip_premise_threshold < hypothesis_score:
                 self.mem_bank[idx].flip(self.default_flipped_confidence)
                 print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
->>>>>>> b126199b8df3eb0257f109424d036bb0a4e49db0
                 mem_flips += 1
         return mem_flips
 
