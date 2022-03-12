@@ -85,7 +85,10 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
     f1_scores = []
     accuracies = []
     consistencies = []
-    every_10 = [((i * len(data)) // 10) for i in range(1, 11)]
+    range_10s = list(range(0, len(data), batch_size))
+    every_10_inds = [i * (len(range_10s) // 10) for i in range(1, 11)]
+    every_10 = [range_10s[i] for i in every_10_inds]
+
     for i in tqdm(range(0, len(data), batch_size)):
         end = i+min(batch_size, len(data))
         q_batch = data[i:end]
@@ -205,8 +208,8 @@ if __name__ == "__main__":
         constraints = [Implication(c) for c in constraints["links"]]
 
         # Evaluate baseline model
-        for config in [baseline_config, flip_95_relevant_config]:
-            mem_bank = MemoryBank(config)
+        for config in [flip_95_no_neutral_relevant_config]:
+            mem_bank = SATMemoryBank(config)
             f1_scores, accuracies, consistencies = evaluate_model(
                 mem_bank, data, mode, constraints, batch_size=args.batch_size)
             save_data(config, f1_scores, accuracies, consistencies)

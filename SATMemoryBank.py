@@ -60,8 +60,8 @@ class SATMemoryBank:
 
         # Z3 MaxSAT solver
         self.solver = Optimize()
-        self.lmbda = 0.5
-        self.records = []
+        self.lmbda = 2
+        self.records = dict()
 
         # Model that goes from sentence to sentence representation
         self.sent_model = SentenceTransformer(config["sentence_model"])
@@ -199,6 +199,8 @@ class SATMemoryBank:
         """
         mem_flips = 0
         for idx in premise_indices:
+            print("Flipping Belief old:", self.mem_bank[idx].get_declarative_statement(),
+                  self.mem_bank[idx].get_confidence())
             self.mem_bank[idx].flip(self.confidence_fn)
             if self.feedback == "topic":
                 # add to entities dict
@@ -206,7 +208,7 @@ class SATMemoryBank:
             mem_flips += 1
         return mem_flips
 
-    def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry, hypothesis_ind, run_solver=False) -> MemoryEntry:
+    def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry, hypothesis_ind) -> MemoryEntry:
         """
         Decide whether or not to flip the hypothesis given relevant MemoryEntries and their indices.
         """
@@ -216,30 +218,42 @@ class SATMemoryBank:
         probs = np.array([self.get_relation(
             p.get_nli_statement(), hypothesis.get_nli_statement()) for p in premises])
 
-        hyp_exp = Bool(hypothesis.get_pos_statement())
-        self.solver.add_soft(hyp_exp, hypothesis.get_confidence() * self.lmbda)
         for i in range(len(premises)):
-            new_exp = Bool(premises[i].get_pos_statement())
-            self.solver.add_soft(new_exp, premises[i].get_confidence() * self.lmbda)
-            if probs[i, 0] > probs[i, 2]:
-                self.solver.add_soft(Or(Not(new_exp), hyp_exp), float(probs[i, 0]))
-            elif probs[i, 2] > probs[i, 0]:
-                self.solver.add_soft(And(new_exp, Not(hyp_exp)), float(probs[i, 2]))
+            if str(premises_indices[i]) not in self.records:
+                self.records.update({str(premises_indices[i]): []})
+            if probs[i, 0] > probs[i, 1]:
+                self.records[str(premises_indices[i])].append((hypothesis_ind, "entail", float(probs[i, 0])))
+            elif probs[i, 1] > probs[i, 0]:
+                self.records[str(premises_indices[i])].append((hypothesis_ind, "contradict", float(probs[i, 1])))
 
-        if run_solver:
-            self.solver.check()
-            opt_model = self.solver.model()
-            if not bool(opt_model[hyp_exp]):
-                # This means some flipping be happening
-                hypothesis.flip(self.confidence_fn)
-                print(f'flipping to {hypothesis.get_declarative_statement()}')
-            inds_to_flip = []
-            for i in range(len(premises)):
-                new_exp = Bool(premises[i].get_pos_statement())
-                if not bool(opt_model[new_exp]):
-                    inds_to_flip.append(premises_indices[i])
-            self.check_and_flip(inds_to_flip)
         return hypothesis
+
+    def solve_and_flip(self):
+        self.solver = Optimize()
+        for i in range(len(self.mem_bank)):
+            # Add all the beliefs
+            # print(self.mem_bank[i].get_confidence())
+            # print(self.mem_bank[i])
+            self.solver.add_soft(Bool(str(i)), self.mem_bank[i].get_confidence() * self.lmbda)
+        for k in self.records:
+            # Add the relations
+            relations = self.records[k]
+            for hyp_ind, rel, weight in relations:
+                if rel == "entail":
+                    self.solver.add_soft(Or(Not(Bool(k)), Bool(str(hyp_ind))), weight)
+                else:
+                    self.solver.add_soft(And(Bool(k), Not(Bool(str(hyp_ind)))), weight)
+        self.solver.check()
+        opt_model = self.solver.model()
+        inds_to_flip = []
+        for i in range(len(self.mem_bank)):
+            new_exp = Bool(str(i))
+            if not bool(opt_model[new_exp]):
+                inds_to_flip.append(i)
+                if str(i) in self.records:
+                    self.records.pop(str(i))
+        self.check_and_flip(inds_to_flip)
+        self.solver = Optimize()
 
     def encode_sent(self, sentences: List[MemoryEntry]):
         return self.sent_model.encode([s.get_pos_statement() for s in sentences], device=self.device, convert_to_tensor=True)
@@ -283,10 +297,10 @@ class SATMemoryBank:
                                      attention_mask=attention_mask,
                                      token_type_ids=token_type_ids,
                                      labels=None)
-        if not self.neutral and torch.argmax(outputs.logits, dim=1) == 1:
-            return np.zeros(3)
-        predicted_probability = torch.softmax(
-            outputs.logits, dim=-1).squeeze().detach().cpu().numpy()
+        if torch.argmax(outputs.logits, dim=1) == 1:
+            return np.zeros(2)
+        predicted_probability = torch.softmax(torch.cat((outputs.logits[:, 0], outputs.logits[:, 2])),
+                                              dim=-1).detach().cpu().numpy()
         return predicted_probability
 
     def forward(self, inputs: List[Tuple[str, str, str]], run_solver=False):
@@ -315,6 +329,8 @@ class SATMemoryBank:
         if self.enable_flip:
             R, I = self.retrieve_from_index(statements)
             statements = [self.flip_or_keep(
-                r, i, s, h_id, run_solver) for h_id, (r, i, s) in enumerate(zip(R, I, statements))]
+                r, i, s, h_id + len(self.mem_bank) - len(statements)) for h_id, (r, i, s) in enumerate(zip(R, I, statements))]
+            if run_solver:
+                self.solve_and_flip()
         # Return the answers for this batch
-        return [a.get_answer() for a in statements]
+        return [a.get_answer() for a in self.mem_bank[len(self.mem_bank) - len(statements):]]
