@@ -1,5 +1,5 @@
 # cs224n_final_project
-Final project for CS224N
+Final project for CS224N. Automatically detects device and runs on GPU if avaiable
 
 To pull BeliefBank data:
 ```
@@ -22,6 +22,11 @@ python run.py --mode 'val'
 Run Memory bank on test dataset
 ```
 python run.py --mode 'test'
+```
+
+To adjust batch size:
+```
+python run.py --batch_size 10
 ```
 
 To visualize results, run:
