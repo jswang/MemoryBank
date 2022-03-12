@@ -85,3 +85,4 @@ protobuf
 sklearn
 matplotlib
 tensorboard
+tensorflow

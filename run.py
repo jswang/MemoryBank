@@ -9,11 +9,12 @@ import torch
 import sklearn
 import matplotlib.pyplot as plt
 from models import *
-import time
+import tensorflow as tf
 import numpy as np
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from tensorboard.plugins.hparams import api as hp
 writer = SummaryWriter()
 
 
@@ -73,11 +74,12 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=30):
+def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
     """
+
     a_truth = torch.tensor([1 if a == "yes" else 0 for (_, _, a) in data])
     f1_scores = []
     accuracies = []
@@ -90,15 +92,19 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=30):
             [1 if a == "yes" else 0 for a in a_pred_batch])
         f1_scr = sklearn.metrics.f1_score(
             a_truth[i:end], a_pred_batch, zero_division=0)
-        f1_scores += [f1_scr]
         accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
+        f1_scores += [f1_scr]
         accuracies += [accuracy]
         writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
         writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
         if constraints is not None:
             c, _, _ = check_consistency(mem_bank, constraints)
             consistencies += [c]
-            writer.add_scalar(f"Consistency/{mem_bank.name}", c, i)
+            writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
+
+    writer.add_hparams({'sentence_similarity_threshold': mem_bank.threshold,
+                        'default_flipped_confidence': mem_bank.default_flipped_confidence,
+                        'flip_premise_threshold': mem_bank.flip_premise_threshold}, {'hparam/average consistency': np.mean(np.array(consistencies)), 'hparam/median consistency': np.median(np.array(consistencies))})
     writer.flush()
     return f1_scores, accuracies, consistencies
 
@@ -148,28 +154,55 @@ def plot(f1_scores, accuracies, consistencies, config):
     plt.close()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', nargs=1, default='full_dataset')
-    args = parser.parse_args()
-    mode = args.mode[0]
-    assert mode in ['full_dataset', 'val', 'test']
-    data_filename = "data/silver_facts.json"
-    if mode != 'full_dataset':
-        data_filename = f"data/silver_facts_{mode}.json"
+def hyperparameter_tune():
 
-    data = utils.json_to_tuples(json.load(open(data_filename)))
+    HP_PREMISE_THRESHOLD = hp.HParam(
+        'flip_premise_threshold', hp.RealInterval(0.1, 0.5))
+
+
+    # Setup
+    data = utils.json_to_tuples(json.load(open("data/silver_facts_val.json")))
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
-    # Evaluate baseline model
-    for config in [flip_95_relevant_config]:
-        mem_bank = MemoryBank(config)
-        f1_scores, accuracies, consistencies = evaluate_model(
-            mem_bank, data, mode, constraints)
-        save_data(config, f1_scores, accuracies, consistencies)
-        plot(f1_scores, accuracies, consistencies, config)
+    for batch_size in [75, 100]:
+        for sentence_similarity_threshold in np.arange(0.5, 1.0, .05):
+            for confidence in np.arange(0.5, 1.0, 0.1):
+                for flip_premise_threshold in np.arange(0.1, 0.6, 0.1):
+                    config = flip_config.copy()
+                    config['sentence_similarity_threshold'] = sentence_similarity_threshold
+                    config['default_flipped_confidence'] = confidence
+                    config['flip_premise_threshold'] = flip_premise_threshold
+                    mem_bank = MemoryBank(config)
+                    f1_scores, accuracies, consistencies = evaluate_model(
+                        mem_bank, data, mode='val', constraints=constraints, batch_size=batch_size)
+                    save_data(config, f1_scores, accuracies, consistencies)
 
-    # load_and_plot("data/results_03_03_18:42:01.json", feedback_relevant_config)
-    # load_and_plot("data/results_03_03_18:33:42.json", flip_config)
-    # load_and_plot("data/results_03_03_17:35:53.json", baseline_config)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mode', default='full_dataset')
+    parser.add_argument('-b', '--batch_size', type=int, default=100)
+    parser.add_argument('-t', '--tune', action='store_true')
+    args = parser.parse_args()
+
+    if args.tune:
+        hyperparameter_tune()
+    else:
+        mode = args.mode
+        assert mode in ['full_dataset', 'val', 'test']
+
+        data_filename = "data/silver_facts.json"
+        if mode != 'full_dataset':
+            data_filename = f"data/silver_facts_{mode}.json"
+
+        data = utils.json_to_tuples(json.load(open(data_filename)))
+        constraints = json.load(open("data/constraints_v2.json"))
+        constraints = [Implication(c) for c in constraints["links"]]
+
+        # Evaluate baseline model
+        for config in [baseline_config, flip_95_relevant_config]:
+            mem_bank = MemoryBank(config)
+            f1_scores, accuracies, consistencies = evaluate_model(
+                mem_bank, data, mode, constraints, batch_size=args.batch_size)
+            save_data(config, f1_scores, accuracies, consistencies)
+            plot(f1_scores, accuracies, consistencies, config)
