@@ -38,12 +38,9 @@ flip_config = {
     # Threshold used to lookup in faiss indexer. Required for feedback and flipping
     "sentence_similarity_threshold": 0.6,
     # When flipping, the confidence to give to a flipped answer
-    "default_flipped_confidence": 0.9,
+    "default_flipped_confidence": 0.7,
     # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
-    "flip_premise_threshold": 1.2,
-    # When flipping, also flip the entailing premises
-    "flip_entailing_premises": True,
-
+    "flip_premise_threshold": 0.1,
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": None,
 }
@@ -68,9 +65,9 @@ feedback_relevant_config = {
     # Threshold used to lookup in faiss indexer. Requires for feedback and flipping
     "sentence_similarity_threshold": 0.6,
     # When flipping, the confidence to give to a flipped answer
-    "default_flipped_confidence": 0.9,
+    "default_flipped_confidence": 0.7,
     # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
-    "flip_premise_threshold": 1.2,
+    "flip_premise_threshold": 0.1,
     # max number of relevant feedbacks
     'max_retrieved': 30
 }
@@ -94,9 +91,9 @@ feedback_topic_config = {
     # Threshold used to lookup in faiss indexer. Requires for feedback and flipping
     "sentence_similarity_threshold": 0.6,
     # When flipping, the confidence to give to a flipped answer
-    "default_flipped_confidence": 0.9,
+    "default_flipped_confidence": 0.7,
     # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
-    "flip_premise_threshold": 1.2,
+    "flip_premise_threshold": 0.1,
     # max number of relevant feedbacks
     'max_retrieved': 30
 }
@@ -197,8 +194,6 @@ roberta_flip_config = {
 
     # Whether we flip answers to questions
     "enable_flip": True,
-    # When flipping, also flip the entailing premises
-    "flip_entailing_premises": True,
     # Threshold used to lookup in faiss indexer. Requires for feedback and flipping
     "sentence_similarity_threshold": 0.75,
     # When flipping, the confidence to give to a flipped answer

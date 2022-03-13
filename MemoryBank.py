@@ -297,7 +297,7 @@ class MemoryBank:
         mem_flips = 0
         hypothesis_score = hypothesis.get_confidence()
         for (idx, p) in zip(premise_indices, premises):
-            if p.confidence*self.config["flip_premise_threshold"] < hypothesis_score:
+            if p.confidence + self.config["flip_premise_threshold"] < hypothesis_score:
                 self.mem_bank[idx].flip(
                     self.config["default_flipped_confidence"])
                 # print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
@@ -368,9 +368,8 @@ class MemoryBank:
             # the hypothesis isn't good and we should flip it
             else:
                 # And flip the entailment premises
-                if self.config["flip_entailing_premises"]:
-                    mem_flips += self.check_and_flip(entail_premises,
-                                                     entail_premises_ind, hypothesis)
+                mem_flips += self.check_and_flip(entail_premises,
+                                                 entail_premises_ind, hypothesis)
                 hypothesis.flip(self.config["default_flipped_confidence"])
                 # print(f"flipping hypothesis to {hypothesis.get_declarative_statement()}")
                 hyp_flip += 1

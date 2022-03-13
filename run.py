@@ -103,7 +103,6 @@ def evaluate_model(mem_bank, data, writer, constraints, batch_size=100):
                         "flip_premise_threshold": mem_bank.config.get("flip_premise_threshold"),
                         "entail_threshold": mem_bank.config.get("entail_threshold"),
                         "scoring": mem_bank.config.get("scoring"),
-                        "flip_entailing_premises": mem_bank.config.get("flip_entailing_premises"),
                         "enable_flip": mem_bank.config.get("enable_flip"),
                         "feedback_type": mem_bank.config.get("feedback_type")
                         },
@@ -177,12 +176,11 @@ def hyperparameter_tune():
                     config['flip_premise_threshold'] = flip_premise_threshold
                     config['entail_threshold'] = entail_threshold
                     config['scoring'] = "max_only"
-                    config['flip_entailing_premises'] = True
 
                     # Evaluate flip only
                     mem_bank = MemoryBank(config)
                     f1_scores, consistencies = evaluate_model(
-                        mem_bank, data, writer=writer, mode='val', constraints=constraints)
+                        mem_bank, data, writer=writer, constraints=constraints)
                     save_data(config, f1_scores,
                               consistencies, date_time=f"{date_time}_flip")
 
@@ -191,7 +189,7 @@ def hyperparameter_tune():
                     config["max_retrieved"] = 30
                     mem_bank = MemoryBank(config)
                     f1_scores, consistencies = evaluate_model(
-                        mem_bank, data, writer=writer, mode='val', constraints=constraints)
+                        mem_bank, data, writer=writer, constraints=constraints)
                     save_data(config, f1_scores,
                               consistencies, date_time=f"{date_time}_relevant")
 
@@ -199,16 +197,18 @@ def hyperparameter_tune():
                     config["feedback_type"] = "topic"
                     mem_bank = MemoryBank(config)
                     f1_scores, consistencies = evaluate_model(
-                        mem_bank, data, writer=writer, mode='val', constraints=constraints)
+                        mem_bank, data, writer=writer, constraints=constraints)
                     save_data(config, f1_scores,
                               consistencies, date_time=f"{date_time}_topic")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', default='val')
+    parser.add_argument('-m', '--mode', default='test')
     parser.add_argument('-b', '--batch_size', type=int, default=30)
     parser.add_argument('-t', '--tune', action='store_true')
+    parser.add_argument('-c', '--config')
+
     args = parser.parse_args()
 
     if args.tune:
@@ -225,13 +225,29 @@ if __name__ == "__main__":
         constraints = json.load(open("data/constraints_v2.json"))
         constraints = [Implication(c) for c in constraints["links"]]
 
+        if args.config == 'flip_config':
+            config = [flip_config]
+        elif args.config == 'feedback_relevant_config':
+            config = [feedback_relevant_config]
+        elif args.config == 'feedback_topic_config':
+            config = [feedback_topic_config]
+        elif args.config == 'sat_flip_config':
+            config = [sat_flip_config]
+        elif args.config == 'sat_flip_relevant_config':
+            config = [sat_flip_relevant_config]
+        elif args.config == 'sat_flip_topic_config':
+            config = [sat_flip_topic_config]
+        else:
+            config = [flip_config, feedback_relevant_config, feedback_topic_config,
+                      sat_flip_config, sat_flip_relevant_config, sat_flip_topic_config]
+
         # Evaluate baseline model
-        for config in [baseline_config, flip_config, feedback_relevant_config, feedback_topic_config, sat_flip_config, sat_flip_relevant_config, sat_flip_topic_config]:
+        for c in config:
             date_time = datetime.fromtimestamp(datetime.timestamp(
                 datetime.now())).strftime('%m_%d_%H:%M:%S')
-            mem_bank = MemoryBank(config)
+            mem_bank = MemoryBank(c)
             writer = SummaryWriter(log_dir=f"runs/{date_time}")
-            f1_scores, consistencies = evaluate_model(
-                mem_bank, data, writer, constraints, batch_size=args.batch_size)
-            save_data(config, f1_scores, consistencies, date_time)
-            plot(f1_scores, consistencies, config, date_time)
+        f1_scores, consistencies = evaluate_model(
+            mem_bank, data, writer, constraints, batch_size=args.batch_size)
+        save_data(c, f1_scores, consistencies, date_time)
+        plot(f1_scores, consistencies, c, date_time)
