@@ -92,7 +92,7 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
     for i in tqdm(range(0, len(data), batch_size)):
         end = i+min(batch_size, len(data))
         q_batch = data[i:end]
-        if i in every_10 and isinstance(mem_bank, SATMemoryBank):
+        if i in every_10:
             a_pred_batch = mem_bank.forward(q_batch, True)
         else:
             a_pred_batch = mem_bank.forward(q_batch)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         constraints = [Implication(c) for c in constraints["links"]]
 
         # Evaluate baseline model
-        for config in [roberta_flip_config]:
+        for config in [feedback_relevant_config]:
             mem_bank = MemoryBank(config)
             f1_scores, accuracies, consistencies = evaluate_model(
                 mem_bank, data, mode, constraints, batch_size=args.batch_size)
