@@ -175,14 +175,15 @@ def hyperparameter_tune():
     writer = SummaryWriter(log_dir=f"runs/hyperparam-tuning-{date_time.strftime('%m_%d_%H:%M:%S')}")
     # Vary the means by which we count up n_entail and n_contra
     runs = 1
-    for scoring in ["max_only", "entail_and_contra"]:
-        for flip_entailing in [True, False]:
-            for _ in range(runs):
-                # Choose uniform random values
-                sentence_similarity_threshold = np.random.uniform(.6, .99)
-                confidence = np.random.uniform(0.5, 1.0)
-                flip_premise_threshold = np.random.uniform(0.75, 1.25)
-                entail_threshold = np.random.uniform(0.75, 1.25)
+
+    for _ in range(runs):
+        # Choose uniform random values
+        sentence_similarity_threshold = np.random.uniform(.6, .99)
+        confidence = np.random.uniform(0.5, 1.0)
+        flip_premise_threshold = np.random.uniform(0.75, 1.25)
+        entail_threshold = np.random.uniform(0.75, 1.25)
+        for scoring in ["max_only", "entail_and_contra"]:
+            for flip_entailing in [True, False]:
                 config = flip_config.copy()
                 config['sentence_similarity_threshold'] = sentence_similarity_threshold
                 config['default_flipped_confidence'] = confidence
