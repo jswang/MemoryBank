@@ -91,7 +91,7 @@ def evaluate_model(mem_bank, data, mode, writer, constraints=None, batch_size=10
     for i in tqdm(range(0, len(data), batch_size)):
         end = i+min(batch_size, len(data))
         q_batch = data[i:end]
-        if i in every_10 and isinstance(mem_bank, SATMemoryBank):
+        if i in every_10:
             a_pred_batch = mem_bank.forward(q_batch, True)
         else:
             a_pred_batch = mem_bank.forward(q_batch)

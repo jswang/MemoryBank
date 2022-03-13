@@ -249,10 +249,22 @@ class SATMemoryBank:
             new_exp = Bool(str(i))
             if not bool(opt_model[new_exp]):
                 inds_to_flip.append(i)
-                if str(i) in self.records:
-                    self.records.pop(str(i))
         self.check_and_flip(inds_to_flip)
-        self.solver = Optimize()
+        # If False, need to flip entailment to contradiction and contradiction to entailment
+        for k in self.records:
+            if int(k) in inds_to_flip:
+                for i, (hyp_ind, rel, weight) in enumerate(self.records[k]):
+                    if rel == "entail":
+                        self.records[k][i] = (hyp_ind, "contradict", weight)
+                    else:
+                        self.records[k][i] = (hyp_ind, "entail", weight)
+            else:
+                for i, (hyp_ind, rel, weight) in enumerate(self.records[k]):
+                    if hyp_ind in inds_to_flip:
+                        if rel == "entail":
+                            self.records[k][i] = (hyp_ind, "contradict", weight)
+                        else:
+                            self.records[k][i] = (hyp_ind, "entail", weight)
 
     def encode_sent(self, sentences: List[MemoryEntry]):
         return self.sent_model.encode([s.get_pos_statement() for s in sentences], device=self.device, convert_to_tensor=True)

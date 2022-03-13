@@ -34,9 +34,9 @@ class MemoryEntry:
     def set_answer(self, ans):
         self.answer = ans
 
-    def get_answer(self):
-        assert(self.answer is not None)
-        return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[1]
+    # def get_answer(self):
+    #     assert(self.answer is not None)
+    #     return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[1]
 
     def get_qa_pair(self):
         assert(self.answer is not None)
