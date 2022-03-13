@@ -368,9 +368,8 @@ class MemoryBank:
             # the hypothesis isn't good and we should flip it
             else:
                 # And flip the entailment premises
-                if self.config["flip_entailing_premises"]:
-                    mem_flips += self.check_and_flip(entail_premises,
-                                                     entail_premises_ind, hypothesis)
+                mem_flips += self.check_and_flip(entail_premises,
+                                                 entail_premises_ind, hypothesis)
                 hypothesis.flip(self.config["default_flipped_confidence"])
                 # print(f"flipping hypothesis to {hypothesis.get_declarative_statement()}")
                 hyp_flip += 1
