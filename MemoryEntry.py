@@ -64,7 +64,7 @@ class MemoryEntry:
         assert self.answer is not None
         assert self.confidence is not None
         self.answer = 'yes' if self.answer == 'no' else 'no'
-        self.confidence = default_flipped_confidence()
+        self.confidence = default_flipped_confidence
 
 
 if __name__ == '__main__':

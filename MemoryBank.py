@@ -58,10 +58,6 @@ class MemoryBank:
         # Embedded sentence index, allows us to look up quickly
         self.index = faiss.IndexFlatIP(
             self.sent_model.get_sentence_embedding_dimension())
-        if "neutral" in config:
-            self.neutral = config['neutral']
-        else:
-            self.neutral = True
 
     def find_same_topic(self, questions: List[MemoryEntry]) -> List[str]:
         """
@@ -189,7 +185,7 @@ class MemoryBank:
         mem_flips = 0
         hypothesis_score = hypothesis.get_confidence()
         for (idx, p) in zip(premise_indices, premises):
-            if p.confidence + self.config["flip_premise_threshold"] < hypothesis_score:
+            if p.confidence*self.config["flip_premise_threshold"] < hypothesis_score:
                 self.mem_bank[idx].flip(self.config["default_flipped_confidence"])
                 print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
                 mem_flips += 1
@@ -202,11 +198,19 @@ class MemoryBank:
         if premises == []:
             return hypothesis
 
+        # Get the relation between each premise and this hypothesis
         probs = np.array([self.get_relation(
-            p.get_nli_statement(), hypothesis.get_nli_statement()) for p in premises])
+            p.get_declarative_statement(), hypothesis.get_declarative_statement()) for p in premises])
 
-        n_entail = np.sum(probs[:, 0])
-        n_contra = np.sum(probs[:, 2])
+        # Just count the max score of entail, neutral, or contra towards the score
+        if "scoring" not in self.config or self.config["scoring"] == "max_only":
+            n_entail = np.sum(probs[np.argmax(probs, axis=1) == 0][:, 0])
+            n_contra = np.sum(probs[np.argmax(probs, axis=1) == 2][:, 2])
+        # Ignore neutral, just sum entail and contra
+        elif self.config["scoring"] == "entail_and_contra":
+            probs[:, 1] = 0
+            n_entail = np.sum(probs[:, 0])
+            n_contra = np.sum(probs[:, 2])
 
         mem_flips = 0
         possible_mem_flips = len(premises)
@@ -214,7 +218,8 @@ class MemoryBank:
 
         # if we have more contradictions than we do entailments, we should flip
         # either the hypothesis or one or more premises
-        if n_entail < n_contra:
+        entail_threshold = 1.0 if 'entail_threshold' not in self.config else self.config['entail_threshold']
+        if n_entail*entail_threshold < n_contra:
             hypothesis_score = hypothesis.get_confidence()
             contra_premise_ind = []
             contra_premise = []
@@ -245,10 +250,11 @@ class MemoryBank:
             # the hypothesis isn't good and we should flip it
             else:
                 # And flip the entailment premises
-                mem_flips += self.check_and_flip(entail_premise,
-                                                 entail_premise_ind, hypothesis)
+                if self.config["flip_entailing_premises"]:
+                    mem_flips += self.check_and_flip(entail_premise,
+                                                    entail_premise_ind, hypothesis)
                 hypothesis.flip(self.config["default_flipped_confidence"])
-                print(f'flipping hypothesis to {hypothesis.get_declarative_statement()}')
+                print(f"flipping hypothesis to {hypothesis.get_declarative_statement()}")
                 hyp_flip += 1
         return hypothesis
 
@@ -263,7 +269,7 @@ class MemoryBank:
         # Embed and add to index
         s_embed = self.encode_sent(new_entries)
         self.add_to_index(s_embed)
-        if self.feedback == "topic":
+        if self.config["feedback_type"] == "topic":
             # add to entities dict
             for q in new_entries:
                 self.entities_dict[q.get_entity()].update({q.get_relation(): q})
@@ -294,12 +300,11 @@ class MemoryBank:
                                      attention_mask=attention_mask,
                                      token_type_ids=token_type_ids,
                                      labels=None)
-        if not self.neutral and torch.argmax(outputs.logits, dim=1) == 1:
-            return np.zeros(3)
+
         predicted_probability = torch.softmax(
             outputs.logits, dim=-1).squeeze().detach().cpu().numpy()
-        # TODO roberta-large-mnli returns (contradiction, neutral, entailment)
-        # whereas ynli returns (entailment, neutral, contradiction)
+        if self.nli_model.name_or_path == 'roberta-large-mnli':
+            predicted_probability = np.flip(predicted_probability)
         return predicted_probability
 
     def forward(self, inputs: List[Tuple[str, str, str]]):
