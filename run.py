@@ -14,7 +14,6 @@ from datetime import datetime
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from tensorboard.plugins.hparams import api as hp
 
 
 def choose_threshold():
@@ -73,7 +72,7 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, mode, writer, constraints, batch_size=100):
+def evaluate_model(mem_bank, data, writer, constraints, batch_size=100):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
@@ -149,7 +148,8 @@ def plot(f1_scores, consistencies, config, date_time=None):
     plt.xlabel("After Batch")
     plt.title(f"{config['name']} Model benchmarks")
     if date_time is not None:
-        plt.savefig(f"figures/{date_time}_{config['name']}_benchmarks.png")
+        plt.savefig(
+            f"figures/{date_time}_{config['name']}_benchmarks.png", dpi=1200)
     else:
         plt.show()
     plt.close()
@@ -226,7 +226,7 @@ if __name__ == "__main__":
         constraints = [Implication(c) for c in constraints["links"]]
 
         # Evaluate baseline model
-        for config in [flip_config]:
+        for config in [baseline_config, flip_config, feedback_relevant_config, feedback_topic_config, sat_flip_config, sat_flip_relevant_config, sat_flip_topic_config]:
             date_time = datetime.fromtimestamp(datetime.timestamp(
                 datetime.now())).strftime('%m_%d_%H:%M:%S')
             mem_bank = MemoryBank(config)
