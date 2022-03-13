@@ -86,3 +86,4 @@ sklearn
 matplotlib
 tensorboard
 tensorflow
+z3-solver

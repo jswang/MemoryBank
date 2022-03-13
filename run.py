@@ -12,12 +12,11 @@ import matplotlib.pyplot as plt
 from models import *
 import tensorflow as tf
 import numpy as np
+from datetime import datetime
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tensorboard.plugins.hparams import api as hp
-writer = SummaryWriter()
-
 
 def choose_threshold():
     """
@@ -75,7 +74,7 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
+def evaluate_model(mem_bank, data, mode, writer, constraints=None, batch_size=100):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
@@ -110,16 +109,20 @@ def evaluate_model(mem_bank, data, mode, constraints=None, batch_size=100):
             consistencies += [c]
             writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
 
-    writer.add_hparams({'sentence_similarity_threshold': mem_bank.config["sentence_similarity_threshold"],
-                        'default_flipped_confidence': mem_bank.config["default_flipped_confidence"],
-                        'flip_premise_threshold': mem_bank.config["flip_premise_threshold"]}, {'hparam/average consistency': np.mean(np.array(consistencies)), 'hparam/median consistency': np.median(np.array(consistencies))})
+    writer.add_hparams({"sentence_similarity_threshold": mem_bank.config["sentence_similarity_threshold"],
+                        "default_flipped_confidence": mem_bank.config["default_flipped_confidence"],
+                        "flip_premise_threshold": mem_bank.config["flip_premise_threshold"],
+                        "entail_threshold": mem_bank.config["entail_threshold"],
+                        "scoring": mem_bank.config["scoring"],
+                        "flip_entailing_premises": mem_bank.config["flip_entailing_premises"]
+                        },
+                        {"hparam/average consistency": np.mean(np.array(consistencies)),
+                        "hparam/median consistency": np.median(np.array(consistencies))})
     writer.flush()
     return f1_scores, accuracies, consistencies
 
 
 def save_data(config, f1_scores, accuracies, consistencies):
-    from datetime import datetime
-    import json
     timestamp = datetime.timestamp(datetime.now())
     date_time = datetime.fromtimestamp(timestamp)
 
@@ -163,32 +166,38 @@ def plot(f1_scores, accuracies, consistencies, config):
 
 
 def hyperparameter_tune():
-
-    HP_PREMISE_THRESHOLD = hp.HParam(
-        'flip_premise_threshold', hp.RealInterval(0.1, 0.5))
-
-
     # Setup
     data = utils.json_to_tuples(json.load(open("data/silver_facts_val.json")))
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
-    for batch_size in [75, 100]:
-        for sentence_similarity_threshold in np.arange(0.5, 1.0, .05):
-            for confidence in np.arange(0.5, 1.0, 0.1):
-                for flip_premise_threshold in np.arange(0.1, 0.6, 0.1):
-                    config = flip_config.copy()
-                    config['sentence_similarity_threshold'] = sentence_similarity_threshold
-                    config['default_flipped_confidence'] = confidence
-                    config['flip_premise_threshold'] = flip_premise_threshold
-                    mem_bank = MemoryBank(config)
-                    f1_scores, accuracies, consistencies = evaluate_model(
-                        mem_bank, data, mode='val', constraints=constraints, batch_size=batch_size)
-                    save_data(config, f1_scores, accuracies, consistencies)
+    date_time = datetime.fromtimestamp(datetime.timestamp(datetime.now()))
+    writer = SummaryWriter(log_dir=f"runs/hyperparam-tuning-{date_time.strftime('%m_%d_%H:%M:%S')}")
+    # Vary the means by which we count up n_entail and n_contra
+    runs = 1
+
+    for _ in range(runs):
+        # Choose uniform random values
+        sentence_similarity_threshold = np.random.uniform(.6, .99)
+        confidence = np.random.uniform(0.5, 1.0)
+        flip_premise_threshold = np.random.uniform(0.75, 1.25)
+        entail_threshold = np.random.uniform(0.75, 1.25)
+        for scoring in ["max_only", "entail_and_contra"]:
+            for flip_entailing in [True, False]:
+                config = flip_config.copy()
+                config['sentence_similarity_threshold'] = sentence_similarity_threshold
+                config['default_flipped_confidence'] = confidence
+                config['flip_premise_threshold'] = flip_premise_threshold
+                config['entail_threshold'] = entail_threshold
+                config['scoring'] = scoring
+                config['flip_entailing_premises'] = flip_entailing
+                mem_bank = MemoryBank(config)
+                f1_scores, accuracies, consistencies = evaluate_model(
+                    mem_bank, data, writer=writer, mode='val', constraints=constraints)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', default='full_dataset')
+    parser.add_argument('-m', '--mode', default='val')
     parser.add_argument('-b', '--batch_size', type=int, default=100)
     parser.add_argument('-t', '--tune', action='store_true')
     args = parser.parse_args()
@@ -208,9 +217,10 @@ if __name__ == "__main__":
         constraints = [Implication(c) for c in constraints["links"]]
 
         # Evaluate baseline model
-        for config in [feedback_relevant_config]:
+        for config in [flip_config]:
             mem_bank = MemoryBank(config)
+            writer = SummaryWriter()
             f1_scores, accuracies, consistencies = evaluate_model(
-                mem_bank, data, mode, constraints, batch_size=args.batch_size)
+                mem_bank, data, mode, writer, constraints, batch_size=args.batch_size)
             save_data(config, f1_scores, accuracies, consistencies)
             plot(f1_scores, accuracies, consistencies, config)

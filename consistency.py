@@ -4,8 +4,9 @@ from nis import match
 from MemoryEntry import MemoryEntry
 from MemoryBank import MemoryBank
 from typing import List
-
-
+from models import *
+import utils
+from tqdm import tqdm
 class Implication:
     """
     Stores an implication of the form:
@@ -36,9 +37,6 @@ class Implication:
     def __repr__(self):
         return f"Implication(source={self.source}, target={self.target},  ans={self.ans}, score={self.score})"
 
-# TODO can optimize this quite a bit probably. currently O(2n^2)
-
-
 def check_consistency(bank: MemoryBank, constraints: List[Implication]):
     """
     Check consistency of MemoryBank against constraints
@@ -48,7 +46,7 @@ def check_consistency(bank: MemoryBank, constraints: List[Implication]):
     for mem_entry in bank.mem_bank:
         entity, ans, relation = mem_entry.get_entity(
         ), mem_entry.get_answer(), mem_entry.get_relation()
-        # Retrieve activated constraints with that id, TODO put this in a pandas dataframe?
+        # Retrieve activated constraints with that id
         for c in constraints:
             # Get all relevant first half of constraints
             if relation == c.source and ans == c.ans[0]:
@@ -131,7 +129,59 @@ def test_consistency():
     assert(valid == 1)
 
 
+def find(data, constraint):
+    for d in data:
+        if d.relation == constraint.source and d.answer == constraint.ans[0]:
+            return d.entity
+    return 'It'
+
+def test_constraint_knowledge(config=baseline_config, contra_test=False):
+    constraints = json.load(open("data/constraints_v2.json"))
+    constraints = [Implication(c) for c in constraints["links"]]
+    data_filename = f"data/silver_facts.json"
+    data = utils.json_to_tuples(json.load(open(data_filename)))
+
+    yess = []
+    nos = []
+    for d in data:
+        m = MemoryEntry(d[0], d[1], answer=d[2])
+        if m.answer == 'yes':
+            yess += [m]
+        else:
+            nos += [m]
+
+    bank = MemoryBank(config)
+    it_results_entailment = []
+    it_results_neutral = []
+    it_results_contradiction = []
+    entity_results_entailment = []
+    entity_results_neutral = []
+    entity_results_contradiction = []
+    for constraint in tqdm(constraints):
+        # find an entity for which this is true
+        entity = find(yess, constraint)
+        a = MemoryEntry(entity=entity, relation=constraint.source, answer=constraint.ans[0])
+        b = MemoryEntry(entity=entity, relation=constraint.target, answer=constraint.ans[1])
+        if contra_test:
+            if b.answer == 'yes':
+                b.answer = 'no'
+            elif b.answer == 'no':
+                b.answer = 'yes'
+        it_result = bank.get_relation(a.get_nli_statement(), b.get_nli_statement())
+        it_results_entailment += [it_result[0]]
+        it_results_neutral += [it_result[1]]
+        it_results_contradiction += [it_result[2]]
+        e_result =bank.get_relation(a.get_declarative_statement(), b.get_declarative_statement())
+        entity_results_entailment += [e_result[0]]
+        entity_results_neutral += [e_result[1]]
+        entity_results_contradiction += [e_result[2]]
+
+    all_results = np.vstack((it_results_entailment, it_results_neutral, it_results_contradiction))
+    decision = np.argmax(all_results, axis=0)
+    print(f"Entailment: {np.sum(decision == 0)}, Neutral: {np.sum(decision == 1)}, Contradiction: {np.sum(decision == 2)}")
+
 if __name__ == "__main__":
     #  Unit tests
     test_consistency()
     test_implication()
+    test_constraint_knowledge()
