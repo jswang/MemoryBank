@@ -126,9 +126,10 @@ def evaluate_model(mem_bank, data, mode, writer, constraints=None, batch_size=10
     return f1_scores, accuracies, consistencies
 
 
-def save_data(config, f1_scores, accuracies, consistencies):
-    timestamp = datetime.timestamp(datetime.now())
-    date_time = datetime.fromtimestamp(timestamp)
+def save_data(config, f1_scores, accuracies, consistencies, date_time=None):
+    if date_time is None:
+        timestamp = datetime.timestamp(datetime.now())
+        date_time = datetime.fromtimestamp(timestamp).strftime('%m_%d_%H:%M:%S')
 
     res_dict = {
         "config": str(config),
@@ -136,7 +137,7 @@ def save_data(config, f1_scores, accuracies, consistencies):
         "accuracies": str(accuracies),
         "consistencies": str(consistencies)
     }
-    with open(f"data/results_{date_time.strftime('%m_%d_%H:%M:%S')}.json", "w+") as f:
+    with open(f"data/results_{date_time}.json", "w+") as f:
         json.dump(res_dict, f)
 
 
@@ -175,8 +176,8 @@ def hyperparameter_tune():
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
 
-    date_time = datetime.fromtimestamp(datetime.timestamp(datetime.now()))
-    writer = SummaryWriter(log_dir=f"runs/hyperparam-tuning-{date_time.strftime('%m_%d_%H:%M:%S')}")
+    date_time = datetime.fromtimestamp(datetime.timestamp(datetime.now())).strftime('%m_%d_%H:%M:%S')
+    writer = SummaryWriter(log_dir=f"runs/hyperparam-tuning-{date_time}")
     # Vary the means by which we count up n_entail and n_contra
     for sentence_similarity_threshold in np.arange(.6, 1.1, .1): # 5
         for confidence in np.arange(0.6, 1.1, 0.1): #5
@@ -194,22 +195,24 @@ def hyperparameter_tune():
 
                     # Evaluate flip only
                     mem_bank = MemoryBank(config)
-                    evaluate_model(
+                    f1_scores, accuracies, consistencies = evaluate_model(
                         mem_bank, data, writer=writer, mode='val', constraints=constraints)
+                    save_data(config, f1_scores, accuracies, consistencies, date_time=f"{date_time}_flip")
 
                     # Evaluate relevant feedback
                     config["feedback_type"] = "relevant"
                     config["max_retrieved"] = 30
                     mem_bank = MemoryBank(config)
-                    evaluate_model(
+                    f1_scores, accuracies, consistencies = evaluate_model(
                         mem_bank, data, writer=writer, mode='val', constraints=constraints)
+                    save_data(config, f1_scores, accuracies, consistencies, date_time=f"{date_time}_relevant")
 
                     # Evaluate on topic feedback
                     config["feedback_type"] = "topic"
                     mem_bank = MemoryBank(config)
-                    evaluate_model(
+                    f1_scores, accuracies, consistencies = evaluate_model(
                         mem_bank, data, writer=writer, mode='val', constraints=constraints)
-
+                    save_data(config, f1_scores, accuracies, consistencies, date_time=f"{date_time}_topic")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -73,9 +73,9 @@ def check_consistency(bank: MemoryBank, constraints: List[Implication]):
 
     return 1 - violations_count/(valid_count + 1e-10), violations_count, valid_count
 
+
+
 # Unit tests
-
-
 def test_implication():
     a = Implication({"weight": "yes_yes", "direction": "forward",
                     "score": 10, "source": "IsA,dog", "target": "HasA,nose"})
