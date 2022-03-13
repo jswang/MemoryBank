@@ -1,13 +1,11 @@
 import argparse
 from MemoryBank import MemoryBank
-from SATMemoryBank import SATMemoryBank
 from tqdm import tqdm
 from consistency import check_consistency, Implication
 from MemoryEntry import MemoryEntry
 import utils
 import json
 import torch
-import sklearn
 import matplotlib.pyplot as plt
 from models import *
 import tensorflow as tf
@@ -74,39 +72,26 @@ def test_ask_question():
     print(f"{answers}, {probs}")
 
 
-def evaluate_model(mem_bank, data, mode, writer, constraints=None, batch_size=100):
+def evaluate_model(mem_bank, data, mode, writer, constraints, batch_size=100):
     """
     Given a model and data containing questions with ground truth, run through
     data in batches. If constraints is None, check consistency as well.
     """
-
-    a_truth = torch.tensor([1 if a == "yes" else 0 for (_, _, a) in data])
+    memory_entries = [MemoryEntry(i[0], i[1], i[2]) for i in data]
     f1_scores = []
     accuracies = []
     consistencies = []
-    range_10s = list(range(0, len(data), batch_size))
-    every_10_inds = [i * (len(range_10s) // 10) for i in range(1, 11)]
-    every_10 = [range_10s[i] for i in every_10_inds]
 
     for i in tqdm(range(0, len(data), batch_size)):
-        end = i+min(batch_size, len(data))
-        q_batch = data[i:end]
-        if i in every_10:
-            a_pred_batch = mem_bank.forward(q_batch, True)
-        else:
-            a_pred_batch = mem_bank.forward(q_batch)
-        a_pred_batch = torch.tensor(
-            [1 if a == "yes" else 0 for a in a_pred_batch])
-        f1_scr = sklearn.metrics.f1_score(
-            a_truth[i:end], a_pred_batch, zero_division=0)
-        accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
-        f1_scores += [f1_scr]
-        accuracies += [accuracy]
-        # writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
-        # writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
-        if constraints is not None:
+        q_batch = data[i:i+min(batch_size, len(data))]
+        is_mega_batch = (i % (len(data)/10) == 0)
+        mem_bank.forward(q_batch, is_mega_batch)
+        if is_mega_batch:
+            f = check_accuracy(mem_bank, memory_entries)
+            f1_scores += [f]
             c, _, _ = check_consistency(mem_bank, constraints)
             consistencies += [c]
+            # writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f, i)
             # writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
 
     writer.add_hparams({"sentence_similarity_threshold": mem_bank.config["sentence_similarity_threshold"],
@@ -217,7 +202,7 @@ def hyperparameter_tune():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mode', default='val')
-    parser.add_argument('-b', '--batch_size', type=int, default=100)
+    parser.add_argument('-b', '--batch_size', type=int, default=10)
     parser.add_argument('-t', '--tune', action='store_true')
     args = parser.parse_args()
 

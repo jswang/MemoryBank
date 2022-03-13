@@ -60,15 +60,12 @@ class MemoryBank:
         # Embedded sentence index, allows us to look up quickly
         self.index = faiss.IndexFlatIP(
             self.sent_model.get_sentence_embedding_dimension())
-        if "neutral" in config:
-            self.neutral = config['neutral']
+
+        if self.config.get("max_sat") is True:
+            self.sat_solver = Optimize()
+            self.lmbda = self.config.get("max_sat_lmbda")
         else:
-            self.neutral = True
-        if "max_sat" in self.config and self.config["max_sat"]:
-            self.solver = Optimize()
-            self.lmbda = self.config["max_sat_lmbda"]
-        else:
-            self.solver = None
+            self.sat_solver = None
             self.lmbda = -1
 
     def find_same_topic(self, questions: List[MemoryEntry]) -> List[str]:
@@ -193,7 +190,6 @@ class MemoryBank:
     """
         SAT MemoryBank Functionalities
     """
-
     def sat_check_and_flip(self, premise_indices):
         """
         Go through the premises in the scope, check confidence levels and decide whether to flip
@@ -203,11 +199,11 @@ class MemoryBank:
             print("Flipping Belief old:", self.mem_bank[idx].get_declarative_statement(),
                   self.mem_bank[idx].get_confidence())
             self.mem_bank[idx].flip(self.config["default_flipped_confidence"])
-            if self.solver is not None:
+            if self.sat_solver is not None:
                 expr = Bool(self.mem_bank[idx].get_pos_statement())
-                self.solver.add_soft(expr == True, self.mem_bank[idx].get_confidence() * self.lmbda if self.mem_bank[idx].get_answer() == "yes"
+                self.sat_solver.add_soft(expr == True, self.mem_bank[idx].get_confidence() * self.lmbda if self.mem_bank[idx].get_answer() == "yes"
                                      else (1 - self.mem_bank[idx].get_confidence()) * self.lmbda)
-                self.solver.add_soft(expr == False, self.mem_bank[idx].get_confidence() * self.lmbda if self.mem_bank[
+                self.sat_solver.add_soft(expr == False, self.mem_bank[idx].get_confidence() * self.lmbda if self.mem_bank[
                                                                                                            idx].get_answer() == "no"
                                                             else (1 - self.mem_bank[idx].get_confidence()) * self.lmbda)
             if self.config["feedback_type"] == "topic":
@@ -228,42 +224,42 @@ class MemoryBank:
 
         hyp_exp = Bool(hypothesis.get_pos_statement())
         if hypothesis.get_answer() == "yes":
-            self.solver.add_soft(hyp_exp == True, hypothesis.get_confidence() * self.lmbda)
-            self.solver.add_soft(hyp_exp == False, (1 - hypothesis.get_confidence()) * self.lmbda)
+            self.sat_solver.add_soft(hyp_exp == True, hypothesis.get_confidence() * self.lmbda)
+            self.sat_solver.add_soft(hyp_exp == False, (1 - hypothesis.get_confidence()) * self.lmbda)
         else:
-            self.solver.add_soft(hyp_exp == False, hypothesis.get_confidence() * self.lmbda)
-            self.solver.add_soft(hyp_exp == True, (1 - hypothesis.get_confidence()) * self.lmbda)
+            self.sat_solver.add_soft(hyp_exp == False, hypothesis.get_confidence() * self.lmbda)
+            self.sat_solver.add_soft(hyp_exp == True, (1 - hypothesis.get_confidence()) * self.lmbda)
 
         for i in range(len(premises)):
             prem = Bool(premises[i].get_pos_statement())
             if probs[i, 0] > probs[i, 1] and probs[i, 0] > probs[i, 2]:
                 if premises[i].get_answer() == "yes":
                     if hypothesis.get_answer() == "yes":
-                        self.solver.add_soft(Or(Not(prem), hyp_exp), float(probs[i, 0]))
+                        self.sat_solver.add_soft(Or(Not(prem), hyp_exp), float(probs[i, 0]))
                     else:
-                        self.solver.add_soft(Or(Not(prem), Not(hyp_exp)), float(probs[i, 0]))
+                        self.sat_solver.add_soft(Or(Not(prem), Not(hyp_exp)), float(probs[i, 0]))
                 else:
                     if hypothesis.get_answer() == "yes":
-                        self.solver.add_soft(Or(prem, hyp_exp), float(probs[i, 0]))
+                        self.sat_solver.add_soft(Or(prem, hyp_exp), float(probs[i, 0]))
                     else:
-                        self.solver.add_soft(Or(prem, Not(hyp_exp)), float(probs[i, 0]))
+                        self.sat_solver.add_soft(Or(prem, Not(hyp_exp)), float(probs[i, 0]))
 
             elif probs[i, 2] > probs[i, 0] and probs[i, 2] > probs[i, 1]:
                 if premises[i].get_answer() == "yes":
                     if hypothesis.get_answer() == "yes":
-                        self.solver.add_soft(And(prem, Not(hyp_exp)), float(probs[i, 1]))
+                        self.sat_solver.add_soft(And(prem, Not(hyp_exp)), float(probs[i, 1]))
                     else:
-                        self.solver.add_soft(And(prem, hyp_exp), float(probs[i, 1]))
+                        self.sat_solver.add_soft(And(prem, hyp_exp), float(probs[i, 1]))
                 else:
                     if hypothesis.get_answer() == "yes":
-                        self.solver.add_soft(And(Not(prem), Not(hyp_exp)), float(probs[i, 1]))
+                        self.sat_solver.add_soft(And(Not(prem), Not(hyp_exp)), float(probs[i, 1]))
                     else:
-                        self.solver.add_soft(And(Not(prem), hyp_exp), float(probs[i, 1]))
+                        self.sat_solver.add_soft(And(Not(prem), hyp_exp), float(probs[i, 1]))
         return hypothesis
 
     def solve_and_flip(self):
-        self.solver.check()
-        opt_model = self.solver.model()
+        self.sat_solver.check()
+        opt_model = self.sat_solver.model()
         inds_to_flip = []
         for i in range(len(self.mem_bank)):
             new_exp = Bool(self.mem_bank[i].get_pos_statement())
@@ -275,7 +271,6 @@ class MemoryBank:
     """
         Simple Flipping MemoryBank functionalities
     """
-
     def check_and_flip(self, premises, premise_indices, hypothesis):
         """
         Go through the premises in the scope, check confidence levels and decide whether to flip
@@ -429,9 +424,9 @@ class MemoryBank:
             questions[i].set_confidence(probs[i])
         statements = questions
 
-        if self.solver is not None:
+        # Run the SAT Solver
+        if self.sat_solver is not None:
             self.add_to_bank(statements)
-
             # Check against existing constraints to flip as necessary
             R, I = self.retrieve_from_index(statements)
             statements = [self.sat_flip_or_keep(

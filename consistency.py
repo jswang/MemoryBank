@@ -7,6 +7,7 @@ from typing import List
 from models import *
 import utils
 from tqdm import tqdm
+import sklearn
 class Implication:
     """
     Stores an implication of the form:
@@ -73,7 +74,13 @@ def check_consistency(bank: MemoryBank, constraints: List[Implication]):
 
     return 1 - violations_count/(valid_count + 1e-10), violations_count, valid_count
 
-
+def check_accuracy(mem_bank: MemoryBank, ground_truth: List[MemoryEntry]):
+    # Compare F1 score of all entries in memory bank against ground truth
+    mem_bank.mem_bank
+    truth = torch.tensor([1 if t.answer == "yes" else 0 for t in ground_truth])
+    pred = torch.tensor([1 if p.answer == "yes" else 0 for p in mem_bank.mem_bank])
+    f1_scr = sklearn.metrics.f1_score(truth[0:len(pred)], pred, zero_division=0)
+    return f1_scr
 
 # Unit tests
 def test_implication():
