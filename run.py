@@ -114,10 +114,14 @@ def evaluate_model(mem_bank, data, mode, writer, constraints=None, batch_size=10
                         "flip_premise_threshold": mem_bank.config["flip_premise_threshold"],
                         "entail_threshold": mem_bank.config["entail_threshold"],
                         "scoring": mem_bank.config["scoring"],
-                        "flip_entailing_premises": mem_bank.config["flip_entailing_premises"]
+                        "flip_entailing_premises": mem_bank.config["flip_entailing_premises"],
+                        "enable_flip": mem_bank.config["enable_flip"],
+                        "feedback_type": mem_bank.config["feedback_type"]
                         },
                         {"hparam/average consistency": np.mean(np.array(consistencies)),
-                        "hparam/median consistency": np.median(np.array(consistencies))})
+                        "hparam/median consistency": np.median(np.array(consistencies)),
+                        "hparam/average accuracy": np.mean(np.array(accuracies)),
+                        "hparam/median accuracy": np.median(np.array(accuracies))})
     writer.flush()
     return f1_scores, accuracies, consistencies
 
@@ -174,11 +178,11 @@ def hyperparameter_tune():
     date_time = datetime.fromtimestamp(datetime.timestamp(datetime.now()))
     writer = SummaryWriter(log_dir=f"runs/hyperparam-tuning-{date_time.strftime('%m_%d_%H:%M:%S')}")
     # Vary the means by which we count up n_entail and n_contra
-    runs = 1
+    runs = 5
 
     for _ in range(runs):
         # Choose uniform random values
-        sentence_similarity_threshold = np.random.uniform(.6, .99)
+        sentence_similarity_threshold = np.random.uniform(.6, .95)
         confidence = np.random.uniform(0.5, 1.0)
         flip_premise_threshold = np.random.uniform(0.75, 1.25)
         entail_threshold = np.random.uniform(0.75, 1.25)
@@ -191,9 +195,25 @@ def hyperparameter_tune():
                 config['entail_threshold'] = entail_threshold
                 config['scoring'] = scoring
                 config['flip_entailing_premises'] = flip_entailing
+
+                # Evaluate flip only
                 mem_bank = MemoryBank(config)
-                f1_scores, accuracies, consistencies = evaluate_model(
+                evaluate_model(
                     mem_bank, data, writer=writer, mode='val', constraints=constraints)
+
+                # Evaluate relevant feedback
+                config["feedback_type"] = "relevant"
+                config["max_retrieved"] = 30
+                mem_bank = MemoryBank(config)
+                evaluate_model(
+                    mem_bank, data, writer=writer, mode='val', constraints=constraints)
+
+                # Evaluate on topic feedback
+                config["feedback_type"] = "topic"
+                mem_bank = MemoryBank(config)
+                evaluate_model(
+                    mem_bank, data, writer=writer, mode='val', constraints=constraints)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

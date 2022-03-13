@@ -43,13 +43,13 @@ class MemoryBank:
 
         # The type of feedback we will be creating
         if config["feedback_type"] == "topic":
-            self.entities_dict = {k: [] for k in json.load(
+            self.entities_dict = {k: {} for k in json.load(
                 open("data/silver_facts.json")).keys()}
         elif config["feedback_type"] == 'relevant':
-            self.entities_dict = dict()
+            self.entities_dict = {}
             assert "max_retrieved" in config, "Missing max retrieval number in config for relevant feedback"
         else:
-            self.entities_dict = dict()
+            self.entities_dict = {}
         self.n_feedback = 3
 
         # Model that goes from sentence to sentence representation
@@ -189,6 +189,9 @@ class MemoryBank:
                 self.mem_bank[idx].flip(self.config["default_flipped_confidence"])
                 print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
                 mem_flips += 1
+                if self.config["feedback_type"] == "topic":
+                    # add to entities dict
+                    self.entities_dict[self.mem_bank[idx].get_entity()].update({self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
         return mem_flips
 
     def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry) -> MemoryEntry:
@@ -221,19 +224,19 @@ class MemoryBank:
         entail_threshold = 1.0 if 'entail_threshold' not in self.config else self.config['entail_threshold']
         if n_entail*entail_threshold < n_contra:
             hypothesis_score = hypothesis.get_confidence()
-            contra_premise_ind = []
-            contra_premise = []
-            entail_premise_ind = []
-            entail_premise = []
+            contra_premises_ind = []
+            contra_premises = []
+            entail_premises_ind = []
+            entail_premises = []
             for i in range(len(premises)):
                 if probs[i, 0] > probs[i, 2]:
-                    entail_premise_ind.append(premises_indices[i])
-                    entail_premise.append(premises[i])
+                    entail_premises_ind.append(premises_indices[i])
+                    entail_premises.append(premises[i])
                 elif probs[i, 2] > probs[i, 0]:
-                    contra_premise_ind.append(premises_indices[i])
-                    contra_premise.append(premises[i])
+                    contra_premises_ind.append(premises_indices[i])
+                    contra_premises.append(premises[i])
             premise_scores = np.array([r.get_confidence()
-                                      for r in contra_premise])
+                                      for r in contra_premises])
 
             hypothesis_votes = np.sum(
                 hypothesis_score > premise_scores)
@@ -243,16 +246,16 @@ class MemoryBank:
             # the hypothesis is good and we should flip some premises
             if hypothesis_votes > premise_votes:
                 # flip premises whose QA scores are lower than hypothesis score
-                mem_flips += self.check_and_flip(contra_premise,
-                                                 contra_premise_ind, hypothesis)
+                mem_flips += self.check_and_flip(contra_premises,
+                                                 contra_premises_ind, hypothesis)
 
             # if our QA model is more confident about premises,
             # the hypothesis isn't good and we should flip it
             else:
                 # And flip the entailment premises
                 if self.config["flip_entailing_premises"]:
-                    mem_flips += self.check_and_flip(entail_premise,
-                                                    entail_premise_ind, hypothesis)
+                    mem_flips += self.check_and_flip(entail_premises,
+                                                    entail_premises_ind, hypothesis)
                 hypothesis.flip(self.config["default_flipped_confidence"])
                 print(f"flipping hypothesis to {hypothesis.get_declarative_statement()}")
                 hyp_flip += 1
