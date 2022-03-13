@@ -95,8 +95,8 @@ def evaluate_model(mem_bank, data, writer, constraints, batch_size=100):
             f1_scores += [f]
             c, _, _ = check_consistency(mem_bank, constraints)
             consistencies += [c]
-            # writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f, i)
-            # writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
+            # writer.add_scalar(f"F1 Score/{mem_bank.name}", f, i)
+            # writer.add_scalar(f"Consistency/{mem_bank.name}", c, i)
 
     writer.add_hparams({"sentence_similarity_threshold": mem_bank.config.get("sentence_similarity_threshold"),
                         "default_flipped_confidence": mem_bank.config.get("default_flipped_confidence"),
@@ -232,6 +232,6 @@ if __name__ == "__main__":
             mem_bank = MemoryBank(config)
             writer = SummaryWriter(log_dir=f"runs/{date_time}")
             f1_scores, consistencies = evaluate_model(
-                mem_bank, data, mode, writer, constraints, batch_size=args.batch_size)
+                mem_bank, data, writer, constraints, batch_size=args.batch_size)
             save_data(config, f1_scores, consistencies, date_time)
             plot(f1_scores, consistencies, config, date_time)

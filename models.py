@@ -157,7 +157,7 @@ sat_flip_relevant_config = {
 }
 
 # Model tries to flip sentences, no feedback
-sat_flip_config = {
+sat_flip_topic_config = {
     "name": "SAT Flip only",
     # NLI model which outputs relation of premise and hypothesis
     "nli_model": "ynie/roberta-large-snli_mnli_fever_anli_R1_R2_R3-nli",
