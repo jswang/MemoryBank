@@ -68,8 +68,8 @@ def check_consistency(bank: MemoryBank, constraints: List[Implication]):
                     if constraint.ans[1] != mem_entry.get_answer():
                         violations_count += 1
                         violations += [constraint]
-    print(
-        f"Violations: {violations_count}, total implications: {valid_count}, consistency: {1 - violations_count/(valid_count+ 1e-10)}")
+    # print(
+    #     f"Violations: {violations_count}, total implications: {valid_count}, consistency: {1 - violations_count/(valid_count+ 1e-10)}")
 
     return 1 - violations_count/(valid_count + 1e-10), violations_count, valid_count
 

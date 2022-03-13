@@ -102,12 +102,12 @@ def evaluate_model(mem_bank, data, mode, writer, constraints=None, batch_size=10
         accuracy = torch.sum(a_truth[i:end] == a_pred_batch) / batch_size
         f1_scores += [f1_scr]
         accuracies += [accuracy]
-        writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
-        writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
+        # writer.add_scalar(f"Accuracy/{mode}/{mem_bank.name}", accuracy, i)
+        # writer.add_scalar(f"F1 Score/{mode}/{mem_bank.name}", f1_scr, i)
         if constraints is not None:
             c, _, _ = check_consistency(mem_bank, constraints)
             consistencies += [c]
-            writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
+            # writer.add_scalar(f"Consistency/{mode}/{mem_bank.name}", c, i)
 
     writer.add_hparams({"sentence_similarity_threshold": mem_bank.config["sentence_similarity_threshold"],
                         "default_flipped_confidence": mem_bank.config["default_flipped_confidence"],
@@ -178,41 +178,37 @@ def hyperparameter_tune():
     date_time = datetime.fromtimestamp(datetime.timestamp(datetime.now()))
     writer = SummaryWriter(log_dir=f"runs/hyperparam-tuning-{date_time.strftime('%m_%d_%H:%M:%S')}")
     # Vary the means by which we count up n_entail and n_contra
-    runs = 5
+    for sentence_similarity_threshold in np.arange(.6, 1.1, .1): # 5
+        for confidence in np.arange(0.6, 1.1, 0.1): #5
+            for flip_premise_threshold in np.arange(0.8, 1.3, .2): #3
+                for entail_threshold in np.arange(0.8, 1.3, .2): ##3
+                    # for scoring in ["max_only", "entail_and_contra"]: #2
+                    # for flip_entailing in [True, False]: #6
+                    config = flip_config.copy()
+                    config['sentence_similarity_threshold'] = sentence_similarity_threshold
+                    config['default_flipped_confidence'] = confidence
+                    config['flip_premise_threshold'] = flip_premise_threshold
+                    config['entail_threshold'] = entail_threshold
+                    config['scoring'] = "max_only"
+                    config['flip_entailing_premises'] = True
 
-    for _ in range(runs):
-        # Choose uniform random values
-        sentence_similarity_threshold = np.random.uniform(.6, .95)
-        confidence = np.random.uniform(0.5, 1.0)
-        flip_premise_threshold = np.random.uniform(0.75, 1.25)
-        entail_threshold = np.random.uniform(0.75, 1.25)
-        for scoring in ["max_only", "entail_and_contra"]:
-            for flip_entailing in [True, False]:
-                config = flip_config.copy()
-                config['sentence_similarity_threshold'] = sentence_similarity_threshold
-                config['default_flipped_confidence'] = confidence
-                config['flip_premise_threshold'] = flip_premise_threshold
-                config['entail_threshold'] = entail_threshold
-                config['scoring'] = scoring
-                config['flip_entailing_premises'] = flip_entailing
+                    # Evaluate flip only
+                    mem_bank = MemoryBank(config)
+                    evaluate_model(
+                        mem_bank, data, writer=writer, mode='val', constraints=constraints)
 
-                # Evaluate flip only
-                mem_bank = MemoryBank(config)
-                evaluate_model(
-                    mem_bank, data, writer=writer, mode='val', constraints=constraints)
+                    # Evaluate relevant feedback
+                    config["feedback_type"] = "relevant"
+                    config["max_retrieved"] = 30
+                    mem_bank = MemoryBank(config)
+                    evaluate_model(
+                        mem_bank, data, writer=writer, mode='val', constraints=constraints)
 
-                # Evaluate relevant feedback
-                config["feedback_type"] = "relevant"
-                config["max_retrieved"] = 30
-                mem_bank = MemoryBank(config)
-                evaluate_model(
-                    mem_bank, data, writer=writer, mode='val', constraints=constraints)
-
-                # Evaluate on topic feedback
-                config["feedback_type"] = "topic"
-                mem_bank = MemoryBank(config)
-                evaluate_model(
-                    mem_bank, data, writer=writer, mode='val', constraints=constraints)
+                    # Evaluate on topic feedback
+                    config["feedback_type"] = "topic"
+                    mem_bank = MemoryBank(config)
+                    evaluate_model(
+                        mem_bank, data, writer=writer, mode='val', constraints=constraints)
 
 
 if __name__ == "__main__":
