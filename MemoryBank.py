@@ -19,6 +19,7 @@ logging.set_verbosity_error()
 # constants
 MAX_INPUT_CHAR_LENGTH = 256
 
+
 class MemoryBank:
     def __init__(self, config=baseline_config):
         """
@@ -76,7 +77,8 @@ class MemoryBank:
         for q in questions:
             entity_select = self.entities_dict[q.get_entity()]
             if len(entity_select) > self.n_feedback:
-                topics = random.choices(list(entity_select.values()), k=self.n_feedback)
+                topics = random.choices(
+                    list(entity_select.values()), k=self.n_feedback)
             else:
                 topics = list(entity_select.values())
             result_topics.append(
@@ -180,8 +182,10 @@ class MemoryBank:
                     temp_retrieved.append(e)
                     temp_indices.append(bank_idx)
             if self.config["feedback_type"] == 'relevant':
-                temp_retrieved = temp_retrieved[:min(len(temp_retrieved), self.config["max_retrieved"])]
-                temp_indices = temp_indices[:min(len(temp_indices), self.config["max_retrieved"])]
+                temp_retrieved = temp_retrieved[:min(
+                    len(temp_retrieved), self.config["max_retrieved"])]
+                temp_indices = temp_indices[:min(
+                    len(temp_indices), self.config["max_retrieved"])]
             retrieved.append(temp_retrieved)
             indices.append(temp_indices)
 
@@ -190,6 +194,7 @@ class MemoryBank:
     """
         SAT MemoryBank Functionalities
     """
+
     def sat_check_and_flip(self, premise_indices):
         """
         Go through the premises in the scope, check confidence levels and decide whether to flip
@@ -202,13 +207,14 @@ class MemoryBank:
             if self.sat_solver is not None:
                 expr = Bool(self.mem_bank[idx].get_pos_statement())
                 self.sat_solver.add_soft(expr == True, self.mem_bank[idx].get_confidence() * self.lmbda if self.mem_bank[idx].get_answer() == "yes"
-                                     else (1 - self.mem_bank[idx].get_confidence()) * self.lmbda)
+                                         else (1 - self.mem_bank[idx].get_confidence()) * self.lmbda)
                 self.sat_solver.add_soft(expr == False, self.mem_bank[idx].get_confidence() * self.lmbda if self.mem_bank[
-                                                                                                           idx].get_answer() == "no"
-                                                            else (1 - self.mem_bank[idx].get_confidence()) * self.lmbda)
+                    idx].get_answer() == "no"
+                                         else (1 - self.mem_bank[idx].get_confidence()) * self.lmbda)
             if self.config["feedback_type"] == "topic":
                 # add to entities dict
-                self.entities_dict[self.mem_bank[idx].get_entity()].update({self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
+                self.entities_dict[self.mem_bank[idx].get_entity()].update(
+                    {self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
             mem_flips += 1
         return mem_flips
 
@@ -224,37 +230,49 @@ class MemoryBank:
 
         hyp_exp = Bool(hypothesis.get_pos_statement())
         if hypothesis.get_answer() == "yes":
-            self.sat_solver.add_soft(hyp_exp == True, hypothesis.get_confidence() * self.lmbda)
-            self.sat_solver.add_soft(hyp_exp == False, (1 - hypothesis.get_confidence()) * self.lmbda)
+            self.sat_solver.add_soft(
+                hyp_exp == True, hypothesis.get_confidence() * self.lmbda)
+            self.sat_solver.add_soft(
+                hyp_exp == False, (1 - hypothesis.get_confidence()) * self.lmbda)
         else:
-            self.sat_solver.add_soft(hyp_exp == False, hypothesis.get_confidence() * self.lmbda)
-            self.sat_solver.add_soft(hyp_exp == True, (1 - hypothesis.get_confidence()) * self.lmbda)
+            self.sat_solver.add_soft(
+                hyp_exp == False, hypothesis.get_confidence() * self.lmbda)
+            self.sat_solver.add_soft(
+                hyp_exp == True, (1 - hypothesis.get_confidence()) * self.lmbda)
 
         for i in range(len(premises)):
             prem = Bool(premises[i].get_pos_statement())
             if probs[i, 0] > probs[i, 1] and probs[i, 0] > probs[i, 2]:
                 if premises[i].get_answer() == "yes":
                     if hypothesis.get_answer() == "yes":
-                        self.sat_solver.add_soft(Or(Not(prem), hyp_exp), float(probs[i, 0]))
+                        self.sat_solver.add_soft(
+                            Or(Not(prem), hyp_exp), float(probs[i, 0]))
                     else:
-                        self.sat_solver.add_soft(Or(Not(prem), Not(hyp_exp)), float(probs[i, 0]))
+                        self.sat_solver.add_soft(
+                            Or(Not(prem), Not(hyp_exp)), float(probs[i, 0]))
                 else:
                     if hypothesis.get_answer() == "yes":
-                        self.sat_solver.add_soft(Or(prem, hyp_exp), float(probs[i, 0]))
+                        self.sat_solver.add_soft(
+                            Or(prem, hyp_exp), float(probs[i, 0]))
                     else:
-                        self.sat_solver.add_soft(Or(prem, Not(hyp_exp)), float(probs[i, 0]))
+                        self.sat_solver.add_soft(
+                            Or(prem, Not(hyp_exp)), float(probs[i, 0]))
 
             elif probs[i, 2] > probs[i, 0] and probs[i, 2] > probs[i, 1]:
                 if premises[i].get_answer() == "yes":
                     if hypothesis.get_answer() == "yes":
-                        self.sat_solver.add_soft(And(prem, Not(hyp_exp)), float(probs[i, 1]))
+                        self.sat_solver.add_soft(
+                            And(prem, Not(hyp_exp)), float(probs[i, 1]))
                     else:
-                        self.sat_solver.add_soft(And(prem, hyp_exp), float(probs[i, 1]))
+                        self.sat_solver.add_soft(
+                            And(prem, hyp_exp), float(probs[i, 1]))
                 else:
                     if hypothesis.get_answer() == "yes":
-                        self.sat_solver.add_soft(And(Not(prem), Not(hyp_exp)), float(probs[i, 1]))
+                        self.sat_solver.add_soft(
+                            And(Not(prem), Not(hyp_exp)), float(probs[i, 1]))
                     else:
-                        self.sat_solver.add_soft(And(Not(prem), hyp_exp), float(probs[i, 1]))
+                        self.sat_solver.add_soft(
+                            And(Not(prem), hyp_exp), float(probs[i, 1]))
         return hypothesis
 
     def solve_and_flip(self):
@@ -271,6 +289,7 @@ class MemoryBank:
     """
         Simple Flipping MemoryBank functionalities
     """
+
     def check_and_flip(self, premises, premise_indices, hypothesis):
         """
         Go through the premises in the scope, check confidence levels and decide whether to flip
@@ -279,12 +298,14 @@ class MemoryBank:
         hypothesis_score = hypothesis.get_confidence()
         for (idx, p) in zip(premise_indices, premises):
             if p.confidence*self.config["flip_premise_threshold"] < hypothesis_score:
-                self.mem_bank[idx].flip(self.config["default_flipped_confidence"])
+                self.mem_bank[idx].flip(
+                    self.config["default_flipped_confidence"])
                 # print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")
                 mem_flips += 1
                 if self.config["feedback_type"] == "topic":
                     # add to entities dict
-                    self.entities_dict[self.mem_bank[idx].get_entity()].update({self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
+                    self.entities_dict[self.mem_bank[idx].get_entity()].update(
+                        {self.mem_bank[idx].get_relation(): self.mem_bank[idx]})
         return mem_flips
 
     def flip_or_keep(self, premises: List[MemoryEntry], premises_indices, hypothesis: MemoryEntry) -> MemoryEntry:
@@ -314,7 +335,8 @@ class MemoryBank:
 
         # if we have more contradictions than we do entailments, we should flip
         # either the hypothesis or one or more premises
-        entail_threshold = 1.0 if 'entail_threshold' not in self.config else self.config['entail_threshold']
+        entail_threshold = 1.0 if 'entail_threshold' not in self.config else self.config[
+            'entail_threshold']
         if n_entail * entail_threshold < n_contra:
             hypothesis_score = hypothesis.get_confidence()
             contra_premises_ind = []
@@ -348,7 +370,7 @@ class MemoryBank:
                 # And flip the entailment premises
                 if self.config["flip_entailing_premises"]:
                     mem_flips += self.check_and_flip(entail_premises,
-                                                    entail_premises_ind, hypothesis)
+                                                     entail_premises_ind, hypothesis)
                 hypothesis.flip(self.config["default_flipped_confidence"])
                 # print(f"flipping hypothesis to {hypothesis.get_declarative_statement()}")
                 hyp_flip += 1
@@ -368,7 +390,8 @@ class MemoryBank:
         if self.config["feedback_type"] == "topic":
             # add to entities dict
             for q in new_entries:
-                self.entities_dict[q.get_entity()].update({q.get_relation(): q})
+                self.entities_dict[q.get_entity()].update(
+                    {q.get_relation(): q})
 
     def clear_bank(self):
         """

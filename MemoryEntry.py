@@ -11,8 +11,8 @@ class MemoryEntry:
     entity: str
     relation: str
     # linked, every answer comes with a confidence
-    confidence: float = None
     answer: str = None
+    confidence: float = None
 
     def get_pos_statement(self):
         return _declarative_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1])[0]
@@ -24,7 +24,8 @@ class MemoryEntry:
         return _declarative_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
 
     def get_nli_statement(self):
-        nli_s = _declarative_template_lookup("It", self.relation.split(",")[0], self.relation.split(",")[1])[self.answer == 'no']
+        nli_s = _declarative_template_lookup("It", self.relation.split(
+            ",")[0], self.relation.split(",")[1])[self.answer == 'no']
         nli_s = " ".join(nli_s.split(" ")[1:])
         return nli_s
 
@@ -33,10 +34,6 @@ class MemoryEntry:
 
     def set_answer(self, ans):
         self.answer = ans
-
-    # def get_answer(self):
-    #     assert(self.answer is not None)
-    #     return _yesno_template_lookup(self.entity, self.relation.split(",")[0], self.relation.split(",")[1], self.answer)[1]
 
     def get_qa_pair(self):
         assert(self.answer is not None)

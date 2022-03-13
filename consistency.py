@@ -8,6 +8,9 @@ from models import *
 import utils
 from tqdm import tqdm
 import sklearn
+import numpy as np
+
+
 class Implication:
     """
     Stores an implication of the form:
@@ -37,6 +40,7 @@ class Implication:
 
     def __repr__(self):
         return f"Implication(source={self.source}, target={self.target},  ans={self.ans}, score={self.score})"
+
 
 def check_consistency(bank: MemoryBank, constraints: List[Implication]):
     """
@@ -74,15 +78,19 @@ def check_consistency(bank: MemoryBank, constraints: List[Implication]):
 
     return 1 - violations_count/(valid_count + 1e-10), violations_count, valid_count
 
+
 def check_accuracy(mem_bank: MemoryBank, ground_truth: List[MemoryEntry]):
     # Compare F1 score of all entries in memory bank against ground truth
-    mem_bank.mem_bank
     truth = torch.tensor([1 if t.answer == "yes" else 0 for t in ground_truth])
-    pred = torch.tensor([1 if p.answer == "yes" else 0 for p in mem_bank.mem_bank])
-    f1_scr = sklearn.metrics.f1_score(truth[0:len(pred)], pred, zero_division=0)
-    return f1_scr
+    pred = torch.tensor(
+        [1 if p.answer == "yes" else 0 for p in mem_bank.mem_bank])
+    f1_score = sklearn.metrics.f1_score(
+        truth[0:len(pred)], pred, zero_division=0)
+    return f1_score
 
 # Unit tests
+
+
 def test_implication():
     a = Implication({"weight": "yes_yes", "direction": "forward",
                     "score": 10, "source": "IsA,dog", "target": "HasA,nose"})
@@ -142,6 +150,7 @@ def find(data, constraint):
             return d.entity
     return 'It'
 
+
 def test_constraint_knowledge(config=baseline_config, contra_test=False):
     constraints = json.load(open("data/constraints_v2.json"))
     constraints = [Implication(c) for c in constraints["links"]]
@@ -167,25 +176,32 @@ def test_constraint_knowledge(config=baseline_config, contra_test=False):
     for constraint in tqdm(constraints):
         # find an entity for which this is true
         entity = find(yess, constraint)
-        a = MemoryEntry(entity=entity, relation=constraint.source, answer=constraint.ans[0])
-        b = MemoryEntry(entity=entity, relation=constraint.target, answer=constraint.ans[1])
+        a = MemoryEntry(entity=entity, relation=constraint.source,
+                        answer=constraint.ans[0])
+        b = MemoryEntry(entity=entity, relation=constraint.target,
+                        answer=constraint.ans[1])
         if contra_test:
             if b.answer == 'yes':
                 b.answer = 'no'
             elif b.answer == 'no':
                 b.answer = 'yes'
-        it_result = bank.get_relation(a.get_nli_statement(), b.get_nli_statement())
+        it_result = bank.get_relation(
+            a.get_nli_statement(), b.get_nli_statement())
         it_results_entailment += [it_result[0]]
         it_results_neutral += [it_result[1]]
         it_results_contradiction += [it_result[2]]
-        e_result =bank.get_relation(a.get_declarative_statement(), b.get_declarative_statement())
+        e_result = bank.get_relation(
+            a.get_declarative_statement(), b.get_declarative_statement())
         entity_results_entailment += [e_result[0]]
         entity_results_neutral += [e_result[1]]
         entity_results_contradiction += [e_result[2]]
 
-    all_results = np.vstack((it_results_entailment, it_results_neutral, it_results_contradiction))
+    all_results = np.vstack(
+        (it_results_entailment, it_results_neutral, it_results_contradiction))
     decision = np.argmax(all_results, axis=0)
-    print(f"Entailment: {np.sum(decision == 0)}, Neutral: {np.sum(decision == 1)}, Contradiction: {np.sum(decision == 2)}")
+    print(
+        f"Entailment: {np.sum(decision == 0)}, Neutral: {np.sum(decision == 1)}, Contradiction: {np.sum(decision == 2)}")
+
 
 if __name__ == "__main__":
     #  Unit tests
