@@ -204,7 +204,7 @@ def hyperparameter_tune():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', default='test')
+    parser.add_argument('-m', '--mode', default='val')
     parser.add_argument('-b', '--batch_size', type=int, default=30)
     parser.add_argument('-t', '--tune', action='store_true')
     parser.add_argument('-c', '--config')
@@ -225,7 +225,9 @@ if __name__ == "__main__":
         constraints = json.load(open("data/constraints_v2.json"))
         constraints = [Implication(c) for c in constraints["links"]]
 
-        if args.config == 'flip_config':
+        if args.config == 'baseline_config':
+            config = [baseline_config]
+        elif args.config == 'flip_config':
             config = [flip_config]
         elif args.config == 'feedback_relevant_config':
             config = [feedback_relevant_config]
@@ -237,6 +239,8 @@ if __name__ == "__main__":
             config = [sat_flip_relevant_config]
         elif args.config == 'sat_flip_topic_config':
             config = [sat_flip_topic_config]
+        elif args.config == 'roberta_flip_config':
+            config = [roberta_flip_config]
         else:
             config = [flip_config, feedback_relevant_config, feedback_topic_config,
                       sat_flip_config, sat_flip_relevant_config, sat_flip_topic_config]

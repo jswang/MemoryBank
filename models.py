@@ -195,9 +195,9 @@ roberta_flip_config = {
     # Whether we flip answers to questions
     "enable_flip": True,
     # Threshold used to lookup in faiss indexer. Requires for feedback and flipping
-    "sentence_similarity_threshold": 0.75,
+    "sentence_similarity_threshold": 0.6,
     # When flipping, the confidence to give to a flipped answer
-    "default_flipped_confidence": 0.5,
+    "default_flipped_confidence": 0.7,
     # When flipping, how much the hypothesis score must exceed the premise confidence by in order to flip premise
     "flip_premise_threshold": 0.1,
 
