@@ -297,7 +297,7 @@ class MemoryBank:
         mem_flips = 0
         hypothesis_score = hypothesis.get_confidence()
         for (idx, p) in zip(premise_indices, premises):
-            if p.confidence + self.config["flip_premise_threshold"] < hypothesis_score:
+            if hypothesis_score - p.confidence > self.config["flip_premise_threshold"]:
                 self.mem_bank[idx].flip(
                     self.config["default_flipped_confidence"])
                 # print(f"flipping premise to: {self.mem_bank[idx].get_declarative_statement()}, hypothesis: {hypothesis.get_declarative_statement()}")

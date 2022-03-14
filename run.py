@@ -242,16 +242,18 @@ if __name__ == "__main__":
         elif args.config == 'roberta_flip_config':
             config = [roberta_flip_config]
         else:
-            config = [flip_config, feedback_relevant_config, feedback_topic_config,
+            config = [baseline_config, flip_config, feedback_relevant_config, feedback_topic_config,
                       sat_flip_config, sat_flip_relevant_config, sat_flip_topic_config]
 
         # Evaluate baseline model
         for c in config:
+            print(
+                f"running model {c=}, mode: {mode}")
             date_time = datetime.fromtimestamp(datetime.timestamp(
                 datetime.now())).strftime('%m_%d_%H:%M:%S')
             mem_bank = MemoryBank(c)
             writer = SummaryWriter(log_dir=f"runs/{date_time}")
-        f1_scores, consistencies = evaluate_model(
-            mem_bank, data, writer, constraints, batch_size=args.batch_size)
-        save_data(c, f1_scores, consistencies, date_time)
-        plot(f1_scores, consistencies, c, date_time)
+            f1_scores, consistencies = evaluate_model(
+                mem_bank, data, writer, constraints, batch_size=args.batch_size)
+            save_data(c, f1_scores, consistencies, date_time)
+            plot(f1_scores, consistencies, c, date_time)

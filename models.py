@@ -150,7 +150,8 @@ sat_flip_relevant_config = {
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": 'relevant',
     "max_sat": True,
-    "max_sat_lmbda": 1
+    "max_sat_lmbda": 1,
+    'max_retrieved': 30
 }
 
 # Model tries to flip sentences, no feedback
@@ -177,7 +178,8 @@ sat_flip_topic_config = {
     # Whether we add feedback: ("revelant", "topic", None)
     "feedback_type": 'topic',
     "max_sat": True,
-    "max_sat_lmbda": 1
+    "max_sat_lmbda": 1,
+    'max_retrieved': 30
 }
 
 # Roberta with flipping
