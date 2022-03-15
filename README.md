@@ -35,4 +35,3 @@ To visualize results, run:
 tensorboard --logdir=runs
 ```
 And open http://localhost:6006/
-
