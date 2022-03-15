@@ -1,5 +1,6 @@
-# cs224n_final_project
-Final project for CS224N. Automatically detects device and runs on GPU if avaiable
+# MemoryBank
+This is our implementation of MemoryBank, a Question Answering system with improved consistency and accuracy.
+This code runs with Python 3.9 on a google cloud A2 compute instance.
 
 To pull BeliefBank data:
 ```
