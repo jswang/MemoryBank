@@ -262,17 +262,17 @@ class MemoryBank:
                 if premises[i].get_answer() == "yes":
                     if hypothesis.get_answer() == "yes":
                         self.sat_solver.add_soft(
-                            And(prem, Not(hyp_exp)), float(probs[i, 1]))
+                            Or(Not(prem), Not(hyp_exp)), float(probs[i, 1]))
                     else:
                         self.sat_solver.add_soft(
-                            And(prem, hyp_exp), float(probs[i, 1]))
+                            Or(Not(prem), hyp_exp), float(probs[i, 1]))
                 else:
                     if hypothesis.get_answer() == "yes":
                         self.sat_solver.add_soft(
-                            And(Not(prem), Not(hyp_exp)), float(probs[i, 1]))
+                            Or(prem, Not(hyp_exp)), float(probs[i, 1]))
                     else:
                         self.sat_solver.add_soft(
-                            And(Not(prem), hyp_exp), float(probs[i, 1]))
+                            Or(prem, hyp_exp), float(probs[i, 1]))
         return hypothesis
 
     def solve_and_flip(self):
